@@ -191,7 +191,7 @@
         setStatus("La vidéo est bloquée — classification impossible.", "error");
         showNotice(`${initialDecision} La vidéo restera bloquée tant que l’analyse n’est pas disponible.`, "error");
       } else {
-        setStatus("Vidéo bloquée — le sujet principal n’est pas confirmé comme scolaire.", "error");
+        setStatus("Vidéo bloquée — aucun lien avec les matières autorisées n’a été confirmé.", "error");
         showNotice(initialDecision, "info");
       }
     } catch (error) {

@@ -629,68 +629,6 @@ async function verifyVideoBeforeOpening(videoId, suppliedTitle) {
       allowed: false,
       title,
       subject: "Aucune",
-      reason: "Clé Gemini manquante. Configure-la dans les paramètres pour vérifier la vidéo."
-    };
-  }
-
-  // Retrieve the canonical YouTube title/channel before evaluating a click.
-  let basic = { title: "", description: "", transcript: "", channel: "" };
-  try {
-    basic = await fetchVideoDetails(videoId, { extended: false });
-  } catch { /* the supplied card title remains a fallback */ }
-  if (basic.title) title = basic.title;
-  if (!title) title = "Titre de vidéo indisponible";
-
-  const firstContext = {
-    description: "",
-    transcript: "",
-    channel: sanitizeText(basic.channel, 200)
-  };
-  const first = await classifyVideo({
-    apiKey: settings.apiKey,
-    model: settings.model,
-    title,
-    videoId,
-    context: firstContext
-  });
-  if (first.allowed === true && first.needsMoreContext !== true) {
-    return { ...first, title };
-  }
-
-  // A negative title-only result is not enough to block: inspect metadata and
-  // transcript first, then make a second decision using that evidence.
-  let extended = { ...basic, description: "", transcript: "" };
-  try {
-    extended = await fetchVideoDetails(videoId, { extended: true });
-  } catch { /* retain the first decision if YouTube metadata is unavailable */ }
-  if (extended.title) title = extended.title;
-  const extraContext = {
-    description: sanitizeText(extended.description, 5000),
-    transcript: sanitizeText(extended.transcript, MAX_TRANSCRIPT_CHARS),
-    channel: sanitizeText(extended.channel || basic.channel, 200)
-  };
-  const hasExtraEvidence = Boolean(extraContext.description || extraContext.transcript);
-  const final = hasExtraEvidence
-    ? await classifyVideo({
-        apiKey: settings.apiKey,
-        model: settings.model,
-        title,
-        videoId,
-        context: extraContext
-      })
-    : first;
-
-  return { ...final, title };
-}
-
-async function verifyVideoBeforeOpening(videoId, suppliedTitle) {
-  const settings = await getGeminiSettings();
-  let title = sanitizeText(suppliedTitle, 500);
-  if (!settings.apiKey) {
-    return {
-      allowed: false,
-      title,
-      subject: "Aucune",
       reason: "Clé Gemini manquante. Configure-la dans les paramètres."
     };
   }

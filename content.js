@@ -68,7 +68,10 @@
       url: video.url,
       title: title || "",
       newTab: wantsNewTab
-    }, () => { void chrome.runtime.lastError; });
+    }, (response) => {
+      const error = chrome.runtime.lastError;
+      if (!wantsNewTab && (error || response?.ok === false)) removeCover();
+    });
   }
 
   function linkFromEvent(event) {
@@ -90,6 +93,7 @@
     const newTab = Boolean(
       event.type === "auxclick" || event.ctrlKey || event.metaKey || event.shiftKey || link.target === "_blank"
     );
+    if (!newTab) ensureCover("Vérification du sujet avec Gemini…");
     requestGate(video.url, titleFromLink(link), newTab);
   }
 
@@ -156,7 +160,7 @@
       }
     } catch { /* Fail closed if the extension worker is unavailable. */ }
 
-    ensureCover("Vidéo bloquée — ouverture de l’intégrale…");
+    ensureCover("Vérification du sujet avec Gemini…");
     pauseVideos();
     requestGate(info.url, "", false);
   }
