@@ -20,13 +20,9 @@
         <small>Crée ou récupère ta clé depuis Google AI Studio. Ne la partage jamais dans un dépôt public.</small>
       </div>
       <div class="field">
-        <label for="model">Modèle</label>
-        <select id="model" name="model">
-          <option value="gemini-3.8-flash">Gemini 3.8 Flash — recommandé</option>
-          <option value="gemini-4-argon">Gemini 4 Argon — raisonnement avancé</option>
-          <option value="gemini-3.6-flash">Gemini 3.6 Flash</option>
-        </select>
-        <small>Le modèle peut être modifié si Google change ses modèles disponibles ou l’accès associé à ta clé.</small>
+        <label for="model">Identifiant du modèle Gemini</label>
+        <input id="model" name="model" type="text" value="gemini-3.5-flash-lite" placeholder="gemini-3.5-flash-lite" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <small>Saisis l’identifiant API exact, par exemple <code>gemini-3.5-flash-lite</code>. Tu peux taper n’importe quel identifiant de modèle disponible pour ta clé. « Gemini 3.5 Flashlight » est reconnu comme un alias de Flash-Lite.</small>
       </div>
       <div class="settings-actions">
         <button class="button button-secondary" id="testButton" type="button">Tester la connexion</button>

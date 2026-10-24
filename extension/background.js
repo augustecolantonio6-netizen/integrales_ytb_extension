@@ -11,10 +11,41 @@ const SUBJECTS = [
   "Enseignement moral et civique (EMC)"
 ];
 
-const DEFAULT_MODEL = "gemini-3.8-flash";
+const DEFAULT_MODEL = "gemini-3.5-flash-lite";
 const GATE_PATH = "blocked.html";
 const ALLOW_PREFIX = "allow_once:";
 const MAX_TRANSCRIPT_CHARS = 8000;
+const MODEL_ALIASES = new Map([
+  ["gemini 3.5 flashlight", "gemini-3.5-flash-lite"],
+  ["gemini 3.5 flash lite", "gemini-3.5-flash-lite"],
+  ["gemini 3.5 flash-lite", "gemini-3.5-flash-lite"],
+  ["gemini 3.5 flash", "gemini-3.5-flash"],
+  ["gemini 3.6 flash", "gemini-3.6-flash"],
+  ["gemini 3.8 flash", "gemini-3.8-flash"],
+  ["gemini 4 argon", "gemini-4-argon"]
+]);
+
+function normalizeGeminiModel(value) {
+  const raw = String(value || "").trim().replace(/^models\//i, "");
+  const aliasKey = raw.toLowerCase().replace(/[–—]/g, "-").replace(/\s+/g, " ").trim();
+  return MODEL_ALIASES.get(aliasKey) || raw;
+}
+
+async function getGeminiSettings() {
+  const saved = await chrome.storage.local.get(["geminiApiKey", "geminiModel", "geminiModelMigrated"]);
+  let model = normalizeGeminiModel(saved.geminiModel);
+  // Earlier builds saved 3.8 Flash as the default. Migrate that default once
+  // to the requested model, without overwriting a later manual model choice.
+  if (!saved.geminiModelMigrated && (!model || model === "gemini-3.8-flash")) {
+    model = DEFAULT_MODEL;
+    await chrome.storage.local.set({ geminiModel: model, geminiModelMigrated: true }).catch(() => {});
+  } else if (!model) {
+    model = DEFAULT_MODEL;
+  } else if (!saved.geminiModelMigrated) {
+    await chrome.storage.local.set({ geminiModelMigrated: true }).catch(() => {});
+  }
+  return { apiKey: String(saved.geminiApiKey || "").trim(), model };
+}
 
 function parseVideoUrl(rawUrl) {
   try {
@@ -301,8 +332,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === "GET_SETTINGS_STATUS") {
-    void chrome.storage.local.get(["geminiApiKey", "geminiModel"]).then((settings) => {
-      sendResponse({ configured: Boolean(settings.geminiApiKey), model: settings.geminiModel || DEFAULT_MODEL });
+    void getGeminiSettings().then((settings) => {
+      sendResponse({ configured: Boolean(settings.apiKey), model: settings.model });
     }).catch(() => sendResponse({ configured: false, model: DEFAULT_MODEL }));
     return true;
   }
@@ -312,10 +343,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const suppliedKey = String(message.apiKey || "").trim();
       const existing = await chrome.storage.local.get("geminiApiKey");
       const apiKey = suppliedKey || String(existing.geminiApiKey || "").trim();
-      const model = String(message.model || DEFAULT_MODEL).trim() || DEFAULT_MODEL;
+      const model = normalizeGeminiModel(message.model || DEFAULT_MODEL) || DEFAULT_MODEL;
       if (apiKey.length < 10) return sendResponse({ ok: false, error: "La clé API semble trop courte." });
-      if (!/^[a-zA-Z0-9._:-]{2,100}$/.test(model)) return sendResponse({ ok: false, error: "Nom de modèle invalide." });
-      await chrome.storage.local.set({ ...(suppliedKey ? { geminiApiKey: apiKey } : {}), geminiModel: model });
+      if (!/^[a-zA-Z0-9._:-]{2,100}$/.test(model)) return sendResponse({ ok: false, error: "Identifiant de modèle invalide. Exemple : gemini-3.5-flash-lite." });
+      await chrome.storage.local.set({
+        ...(suppliedKey ? { geminiApiKey: apiKey } : {}),
+        geminiModel: model,
+        geminiModelMigrated: true
+      });
       sendResponse({ ok: true });
     })().catch((error) => sendResponse({ ok: false, error: error.message || "Enregistrement impossible." }));
     return true;
@@ -323,9 +358,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.type === "TEST_API_KEY") {
     void (async () => {
-      const model = String(message.model || DEFAULT_MODEL).trim() || DEFAULT_MODEL;
+      const saved = await getGeminiSettings();
+      const apiKey = String(message.apiKey || saved.apiKey).trim();
+      const model = normalizeGeminiModel(message.model || saved.model) || DEFAULT_MODEL;
+      if (!apiKey) throw new Error("Clé API manquante. Saisis-la puis enregistre-la dans les paramètres.");
+      if (!/^[a-zA-Z0-9._:-]{2,100}$/.test(model)) throw new Error("Identifiant de modèle invalide. Exemple : gemini-3.5-flash-lite.");
       const data = await callGemini({
-        apiKey: String(message.apiKey || "").trim(),
+        apiKey,
         model,
         systemInstruction: "Réponds uniquement en JSON avec un champ ok à true.",
         contents: [{ role: "user", parts: [{ text: "Test de connexion. Réponds {\"ok\":true}." }] }],
@@ -344,12 +383,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (!gate || String(message.video?.videoId || "") !== gate.videoId) {
         return sendResponse({ configured: false, allowed: false, reason: "Le contexte de cette vidéo n’est pas valide. Elle reste bloquée." });
       }
-      const settings = await chrome.storage.local.get(["geminiApiKey", "geminiModel"]);
-      if (!settings.geminiApiKey) return sendResponse({ configured: false, allowed: false, reason: "Ajoute ta clé Gemini dans les paramètres pour analyser les vidéos." });
+      const settings = await getGeminiSettings();
+      if (!settings.apiKey) return sendResponse({ configured: false, allowed: false, reason: "Ajoute ta clé Gemini dans les paramètres pour analyser les vidéos." });
       const context = sanitizeContext(message.context || {});
       const result = await classifyVideo({
-        apiKey: settings.geminiApiKey,
-        model: settings.geminiModel || DEFAULT_MODEL,
+        apiKey: settings.apiKey,
+        model: settings.model,
         title: gate.title || String(message.video?.title || "").trim(),
         videoId: gate.videoId,
         context
@@ -369,11 +408,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (!gate || String(message.video?.videoId || "") !== gate.videoId) {
         return sendResponse({ configured: false, accepted: false, reply: "Le contexte de cette vidéo n’est pas valide. Elle reste bloquée." });
       }
-      const settings = await chrome.storage.local.get(["geminiApiKey", "geminiModel"]);
-      if (!settings.geminiApiKey) return sendResponse({ configured: false, accepted: false, reply: "Gemini n'est pas configuré. Ajoute ta clé API dans les paramètres." });
+      const settings = await getGeminiSettings();
+      if (!settings.apiKey) return sendResponse({ configured: false, accepted: false, reply: "Gemini n'est pas configuré. Ajoute ta clé API dans les paramètres." });
       const result = await respondToJustification({
-        apiKey: settings.geminiApiKey,
-        model: settings.geminiModel || DEFAULT_MODEL,
+        apiKey: settings.apiKey,
+        model: settings.model,
         title: gate.title || String(message.video?.title || "Vidéo YouTube"),
         videoId: gate.videoId,
         context: sanitizeContext(message.context || {}),
@@ -500,7 +539,17 @@ function normalizeSubject(value) {
 
 function isAllowedSubject(value) {
   const candidate = normalizeSubject(value);
-  return SUBJECTS.some((subject) => normalizeSubject(subject) === candidate);
+  if (SUBJECTS.some((subject) => normalizeSubject(subject) === candidate)) return true;
+  const aliases = new Set([
+    "math", "maths", "mathematique", "mathematiques", "mathematics",
+    "maths expertes", "mathematiques expertes", "advanced mathematics",
+    "anglais", "english literature", "english lit", "litterature anglaise",
+    "physique chimie", "physics", "science", "sciences",
+    "espagnol", "spanish", "geography", "geographie", "history", "histoire",
+    "philosophy", "philosophie", "emc", "education morale et civique",
+    "enseignement moral et civique"
+  ]);
+  return aliases.has(candidate);
 }
 
 const CLASSIFICATION_SCHEMA = {

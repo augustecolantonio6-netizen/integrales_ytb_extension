@@ -4,7 +4,7 @@
 
 Tu peux installer depuis le ZIP ou depuis le code source du dépôt.
 
-- **Depuis le ZIP :** télécharge `releases/Integrales_YouTube_Focus_v1.0.3.zip` puis décompresse-le. Le dossier de l'extension est `integrales_ytb_extension/`.
+- **Depuis le ZIP :** télécharge `releases/Integrales_YouTube_Focus_v1.0.4.zip` puis décompresse-le. Le dossier de l'extension est `integrales_ytb_extension/`.
 - **Depuis le dépôt :** télécharge le dépôt en ZIP, décompresse-le, puis utilise le dossier `extension/` qui contient `manifest.json`.
 
 ## 2. Charger l'extension
@@ -39,3 +39,8 @@ Teste ces cas sans lancer de contenu sensible :
 - **L'extension ne se charge pas :** vérifie que le dossier sélectionné contient directement `manifest.json`.
 - **Gemini ne répond pas :** vérifie la clé API, le modèle configuré et la connexion réseau.
 - **La vidéo reste bloquée après un recours accepté :** recharge l'extension depuis `arc://extensions`, puis reteste ; rapporte le cas avec les erreurs de la console si nécessaire.
+
+
+## Choisir le modèle Gemini
+
+Le modèle par défaut est `gemini-3.5-flash-lite`. Tu peux remplacer cet identifiant dans le champ texte des paramètres. « Gemini 3.5 Flashlight » est reconnu comme alias de `gemini-3.5-flash-lite`.

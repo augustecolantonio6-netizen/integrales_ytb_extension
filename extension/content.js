@@ -39,15 +39,19 @@
   }
 
   function titleFromLink(link) {
+    // Prefer the visible video title; aria-label/title can identify UI controls.
     const candidates = [
-      link.getAttribute("title"),
+      link.querySelector("#video-title, yt-formatted-string#video-title, .yt-lockup-metadata-view-model__title, h3")?.textContent,
+      link.querySelector("[aria-label*='Video:'], [aria-label*='Vidéo :']")?.getAttribute("aria-label"),
+      link.dataset?.title,
       link.getAttribute("aria-label"),
-      link.querySelector("#video-title, .yt-lockup-metadata-view-model__title, h3")?.textContent,
+      link.getAttribute("title"),
       link.textContent
     ];
+    const generic = /^(youtube|watch video|watch later|add to queue|save to playlist|vidéo|video|shorts|à regarder plus tard|ajouter à la file d'attente)$/i;
     for (const candidate of candidates) {
       const text = String(candidate || "").replace(/\s+/g, " ").trim();
-      if (text.length >= 3 && !/^(youtube|watch video|vidéo)$/i.test(text)) return text.slice(0, 500);
+      if (text.length >= 3 && text.length <= 500 && !generic.test(text)) return text;
     }
     return "";
   }

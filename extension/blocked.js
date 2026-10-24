@@ -40,6 +40,11 @@
     return chosen;
   }
 
+  function isGenericVideoTitle(value) {
+    const title = String(value || "").replace(/\s+/g, " ").trim();
+    return !title || /^(vidéo youtube|video youtube|youtube|watch later|add to queue|watch video|video unavailable|récupération du titre de la vidéo…?)$/i.test(title);
+  }
+
   function padded(value) { return String(value).padStart(3, "0"); }
 
   function setExerciseImage() {
@@ -104,7 +109,7 @@
     const response = await sendRuntime({ type: "GET_VIDEO_DETAILS", videoId, extended });
     if (!response?.ok || !response.details) return false;
     const details = response.details;
-    if (!videoTitle && details.title) {
+    if (details.title && isGenericVideoTitle(videoTitle)) {
       videoTitle = details.title;
       videoTitleEl.textContent = videoTitle;
     }
@@ -139,7 +144,7 @@
     classificationBusy = true;
     setStatus("Vérification du sujet avec Gemini…", "loading");
     try {
-      if (!videoTitle) await retrieveVideoDetails(false);
+      if (isGenericVideoTitle(videoTitle)) await retrieveVideoDetails(false);
       if (!videoTitle) videoTitle = videoId ? `Vidéo YouTube (${videoId})` : "Vidéo YouTube";
       videoTitleEl.textContent = videoTitle;
 
@@ -156,14 +161,22 @@
         return;
       }
 
-      if (result?.needsMoreContext) {
-        setStatus("Le titre ne suffit pas ; je vérifie les informations disponibles…", "loading");
+      const firstReason = String(result?.reason || result?.error || "");
+      const hardApiFailure = /analyse indisponible|erreur api|quota|clé api|modèle gemini|délai d’attente|clé invalide/i.test(firstReason);
+      if ((result?.needsMoreContext === true || result?.allowed !== true) && !hardApiFailure) {
+        const before = JSON.stringify(context);
+        setStatus("Je vérifie aussi la description et les informations de la vidéo…", "loading");
         await retrieveVideoDetails(true);
-        result = await sendRuntime({
-          type: "CLASSIFY_VIDEO",
-          video: { title: videoTitle, videoId },
-          context
-        });
+        const moreContextAvailable = JSON.stringify(context) !== before &&
+          Boolean(context.description || context.transcript || context.channel);
+        if (moreContextAvailable) {
+          // A negative title-only decision is not final when more metadata can clarify the main subject.
+          result = await sendRuntime({
+            type: "CLASSIFY_VIDEO",
+            video: { title: videoTitle, videoId },
+            context
+          });
+        }
       }
 
       if (result?.allowed === true && result?.needsMoreContext !== true) {

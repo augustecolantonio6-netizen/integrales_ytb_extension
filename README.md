@@ -28,7 +28,7 @@ Extension personnelle pour Arc sous Windows : lorsqu'une vidéo YouTube ne sembl
 │   ├── icons/
 │   └── assets/
 ├── releases/
-│   └── Integrales_YouTube_Focus_v1.0.3.zip
+│   └── Integrales_YouTube_Focus_v1.0.4.zip
 └── README.md
 ```
 
@@ -36,7 +36,7 @@ Le dossier `extension/` est généré depuis l'archive versionnée dans `release
 
 ## Installation rapide
 
-1. Ouvre [la dernière archive disponible](releases/Integrales_YouTube_Focus_v1.0.3.zip) ou télécharge le dépôt.
+1. Ouvre [la dernière archive disponible](releases/Integrales_YouTube_Focus_v1.0.4.zip) ou télécharge le dépôt.
 2. Décompresse le ZIP, puis ouvre `arc://extensions` dans Arc.
 3. Active le **Mode développeur**.
 4. Clique sur **Charger l’extension non empaquetée** et sélectionne le dossier `integrales_ytb_extension` (depuis l’archive) ou le dossier `extension/` (depuis le dépôt organisé), selon la version téléchargée.
@@ -62,3 +62,8 @@ Consulte [le guide d'installation détaillé](docs/INSTALLATION.md).
 ## Limites de validation
 
 Les contrôles locaux du paquet ne remplacent pas un test réel dans Arc sous Windows. Vérifie notamment les navigations vers une vidéo, les Shorts, l'ouverture en nouvel onglet, le recours Gemini et le refus d'accès lorsque l'API ne répond pas.
+
+
+## Modèle Gemini
+
+Le modèle par défaut est `gemini-3.5-flash-lite`. Dans les paramètres, tu peux saisir librement l'identifiant de tout modèle pris en charge par ta clé API. « Gemini 3.5 Flashlight » est normalisé vers `gemini-3.5-flash-lite`.

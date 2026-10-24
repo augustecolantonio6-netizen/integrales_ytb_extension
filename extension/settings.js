@@ -7,6 +7,7 @@
   const saveButton = document.getElementById("saveButton");
   const result = document.getElementById("settingsResult");
   let hasSavedKey = false;
+  const DEFAULT_MODEL = "gemini-3.5-flash-lite";
 
   function message(text, isError = false) {
     result.textContent = text;
@@ -14,15 +15,22 @@
   }
 
   chrome.storage.local.get(["geminiApiKey", "geminiModel"]).then((settings) => {
-    // Do not prefill the password input with the saved key; only indicate that one exists.
-    if (settings.geminiApiKey) { hasSavedKey = true; apiKey.placeholder = "Clé enregistrée — laisse vide pour la conserver"; }
-    if (settings.geminiModel && [...model.options].some((option) => option.value === settings.geminiModel)) model.value = settings.geminiModel;
+    // Never prefill the secret; allow testing against the saved key without retyping it.
+    if (settings.geminiApiKey) {
+      hasSavedKey = true;
+      apiKey.placeholder = "Clé enregistrée — laisse vide pour la conserver";
+    }
+    const savedModel = String(settings.geminiModel || "").trim();
+    model.value = (!savedModel || savedModel === "gemini-3.8-flash") ? DEFAULT_MODEL : savedModel;
+  }).catch(() => {
+    model.value = DEFAULT_MODEL;
+    message("Impossible de lire les paramètres existants.", true);
   });
 
   testButton.addEventListener("click", async () => {
     const key = apiKey.value.trim();
-    if (!key) {
-      message("Colle ta clé API pour tester la connexion.", true);
+    if (!key && !hasSavedKey) {
+      message("Colle et enregistre une clé API avant de tester la connexion.", true);
       apiKey.focus();
       return;
     }
@@ -32,7 +40,9 @@
     const response = await chrome.runtime.sendMessage({ type: "TEST_API_KEY", apiKey: key, model: model.value }).catch((error) => ({ ok: false, error: error.message }));
     testButton.disabled = false;
     saveButton.disabled = false;
-    message(response?.ok ? "Connexion réussie. Tu peux enregistrer la clé." : (response?.error || "Connexion impossible."), !response?.ok);
+    message(response?.ok
+      ? (key ? "Connexion réussie avec la clé saisie. Tu peux enregistrer les paramètres." : "Connexion réussie avec la clé déjà enregistrée.")
+      : (response?.error || "Connexion impossible."), !response?.ok);
   });
 
   form.addEventListener("submit", async (event) => {
@@ -53,7 +63,7 @@
       apiKey.value = "";
       hasSavedKey = true;
       apiKey.placeholder = "Clé enregistrée — laisse vide pour la conserver";
-      message("Paramètres enregistrés sur cet appareil.");
+      message(`Paramètres enregistrés sur cet appareil. Modèle : ${model.value.trim()}.`);
     } else {
       message(response?.error || "Impossible d’enregistrer les paramètres.", true);
     }
