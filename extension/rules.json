@@ -1,0 +1,22 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": {
+      "type": "block"
+    },
+    "condition": {
+      "urlFilter": "||googlevideo.com/",
+      "initiatorDomains": [
+        "youtube.com",
+        "youtu.be",
+        "youtube-nocookie.com"
+      ],
+      "resourceTypes": [
+        "media",
+        "xmlhttprequest",
+        "other"
+      ]
+    }
+  }
+]

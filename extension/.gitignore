@@ -1,0 +1,12 @@
+# Local/editor files
+.DS_Store
+Thumbs.db
+*.log
+_preview.html
+
+# Never commit personal credentials
+.env
+.env.*
+*.pem
+
+# Browser profile data is not part of this source tree

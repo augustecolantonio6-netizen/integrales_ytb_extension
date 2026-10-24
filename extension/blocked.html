@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Pause pédagogique — Intégrales</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="gate-body">
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="Intégrales — accueil"><span class="brand-symbol">∫</span><span>integrales<span class="brand-dot">.</span></span></a>
+    <div class="topbar-right"><span class="status-dot"></span><span>Mode concentration</span><button class="icon-button" id="settingsButton" aria-label="Paramètres" title="Paramètres">⚙</button></div>
+  </header>
+
+  <main class="gate-main">
+    <section class="intro-block">
+      <div class="eyebrow"><span class="eyebrow-line"></span> UNE PETITE PAUSE UTILE</div>
+      <h1>On revient à l’essentiel.</h1>
+      <p class="intro-copy">Cette vidéo semble s’éloigner de tes matières. Prends une minute pour te remettre dans le rythme.</p>
+      <div class="video-title-wrap"><span class="video-label">VIDÉO INTERCEPTÉE</span><p id="videoTitle" class="video-title">Vérification du titre…</p></div>
+      <div class="classification-status" id="classificationStatus" aria-live="polite"><span class="spinner"></span><span>Vérification du sujet avec Gemini…</span></div>
+    </section>
+
+    <section class="exercise-card" id="exerciseCard" aria-label="Intégrale à résoudre" hidden>
+      <div class="exercise-topline"><span class="section-label">TON INTÉGRALE DU MOMENT</span><span id="exerciseNumber" class="exercise-number">N° — / 100</span></div>
+      <div class="exercise-image-wrap"><img id="exerciseImage" class="exercise-image" alt="Énoncé de l’intégrale" draggable="false"></div>
+      <div class="solution-note" id="solutionNote" hidden>La correction remplace l’énoncé. Tu peux revenir à l’intégrale à tout moment.</div>
+      <div class="exercise-actions">
+        <button id="solutionButton" class="button button-primary"><span class="button-icon">∫</span> Solution</button>
+        <button id="anotherButton" class="button button-secondary"><span class="button-icon">↻</span> Trouver une autre intégrale</button>
+      </div>
+    </section>
+
+    <section class="appeal-card" id="appealCard" hidden>
+      <div class="appeal-copy"><div class="appeal-icon">↗</div><div><h2>Le système s’est trompé ?</h2><p>Explique le lien avec une de tes matières. Gemini examinera ta justification.</p></div></div>
+      <button id="appealButton" class="button button-quiet">Justifier l’erreur <span aria-hidden="true">→</span></button>
+      <div id="chatPanel" class="chat-panel" hidden>
+        <div class="chat-header"><div><h3>Justifier le lien pédagogique</h3><p>Décris le rapport entre la vidéo et ton programme.</p></div><button id="closeChatButton" class="icon-button" aria-label="Fermer le chatbot">×</button></div>
+        <div id="chatMessages" class="chat-messages" aria-live="polite"></div>
+        <form id="chatForm" class="chat-form"><textarea id="chatInput" rows="3" maxlength="2000" placeholder="Cette vidéo est liée à… parce que…" required></textarea><button id="sendChatButton" class="button button-primary" type="submit">Envoyer <span aria-hidden="true">↑</span></button></form>
+        <p class="chat-footnote">L’accès n’est accordé que si le lien pédagogique est suffisamment clair. Si Gemini ne peut pas confirmer, la vidéo reste bloquée.</p>
+      </div>
+    </section>
+
+    <div id="notice" class="notice" aria-live="polite" hidden></div>
+    <footer class="page-footer"><span>Une intégrale à la fois.</span><button id="footerSettingsButton" class="text-button">Paramètres Gemini</button></footer>
+  </main>
+  <script src="blocked.js"></script>
+</body>
+</html>

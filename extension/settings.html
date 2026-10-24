@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Paramètres — Intégrales</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="settings-body">
+  <main class="settings-shell">
+    <a class="brand" href="#"><span class="brand-symbol">∫</span><span>integrales<span class="brand-dot">.</span></span></a>
+    <div class="eyebrow"><span class="eyebrow-line"></span> PARAMÈTRES DE L’EXTENSION</div>
+    <h1>Configurer Gemini</h1>
+    <p class="settings-intro">La clé sert à classer les vidéos et à examiner les justifications. Elle est conservée dans le stockage local de cette extension et n’est jamais incluse dans le dépôt GitHub.</p>
+    <form id="settingsForm">
+      <div class="field">
+        <label for="apiKey">Clé API Gemini</label>
+        <input id="apiKey" type="password" name="apiKey" autocomplete="off" placeholder="Colle ici ta clé API" spellcheck="false">
+        <small>Crée ou récupère ta clé depuis Google AI Studio. Ne la partage jamais dans un dépôt public.</small>
+      </div>
+      <div class="field">
+        <label for="model">Modèle</label>
+        <select id="model" name="model">
+          <option value="gemini-3.8-flash">Gemini 3.8 Flash — recommandé</option>
+          <option value="gemini-4-argon">Gemini 4 Argon — raisonnement avancé</option>
+          <option value="gemini-3.6-flash">Gemini 3.6 Flash</option>
+        </select>
+        <small>Le modèle peut être modifié si Google change ses modèles disponibles ou l’accès associé à ta clé.</small>
+      </div>
+      <div class="settings-actions">
+        <button class="button button-secondary" id="testButton" type="button">Tester la connexion</button>
+        <button class="button button-primary" id="saveButton" type="submit">Enregistrer</button>
+      </div>
+      <div id="settingsResult" class="settings-result" role="status" aria-live="polite"></div>
+    </form>
+    <div class="settings-note"><strong>Règle de sécurité :</strong> si Gemini ne répond pas, si la clé est invalide ou si le lien pédagogique est incertain, l’extension ne déverrouille pas la vidéo. Un recours accepté ne déverrouille que la vidéo contestée dans l’onglet courant.</div>
+  </main>
+  <script src="settings.js"></script>
+</body>
+</html>
