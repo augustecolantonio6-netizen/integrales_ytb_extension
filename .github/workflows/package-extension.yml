@@ -21,6 +21,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          for file in extension/*.js; do
+            echo "Checking $file"
+            node --check "$file"
+          done
           python3 - <<'PY'
           import json
           from pathlib import Path
