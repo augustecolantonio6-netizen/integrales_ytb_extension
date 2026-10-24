@@ -1,46 +1,40 @@
 # Installation sur Arc (Windows)
 
-## 1. Récupérer les fichiers
+## Télécharger le dépôt
 
-Tu peux installer depuis le ZIP ou depuis le code source du dépôt.
+1. Ouvre la page du dépôt : https://github.com/augustecolantonio6-netizen/integrales_ytb_extension
+2. Clique sur **Code → Download ZIP**.
+3. Dans l’Explorateur de fichiers, clique droit sur le ZIP et choisis **Extraire tout**.
 
-- **Depuis le ZIP :** télécharge `releases/Integrales_YouTube_Focus_v1.0.4.zip` puis décompresse-le. Le dossier de l'extension est `integrales_ytb_extension/`.
-- **Depuis le dépôt :** télécharge le dépôt en ZIP, décompresse-le, puis utilise le dossier `extension/` qui contient `manifest.json`.
+Le dossier extrait doit contenir directement `manifest.json`, `background.js`, `content.js`, `blocked.html` et `settings.html`.
 
-## 2. Charger l'extension
+**Ne cherche pas de dossier `extension/` et n’utilise pas une archive provenant d’une ancienne version.** Le dépôt est organisé pour que sa racine soit elle-même le dossier installable.
+
+## Charger l’extension
 
 1. Ouvre Arc.
-2. Navigue vers `arc://extensions`.
+2. Va à `arc://extensions`.
 3. Active **Mode développeur**.
-4. Clique sur **Charger l'extension non empaquetée**.
-5. Sélectionne le dossier contenant directement `manifest.json` — pas le dossier parent du projet.
+4. Clique sur **Charger l’extension non empaquetée**.
+5. Sélectionne le dossier extrait qui contient directement `manifest.json`.
 
-## 3. Configurer Gemini
+Si Arc indique que le manifeste est introuvable, tu as probablement sélectionné le ZIP lui-même ou le mauvais dossier : choisis le dossier décompressé dont le premier niveau contient `manifest.json`.
 
-1. Ouvre les paramètres de l'extension.
-2. Saisis ta clé API Gemini.
-3. Utilise le bouton de test de connexion.
-4. Enregistre les paramètres.
+## Configurer Gemini
 
-Ne partage pas ta clé et ne la committe pas dans GitHub. En cas d'absence de clé, d'échec réseau ou de réponse ambiguë, le comportement prévu est de conserver le blocage.
+1. Ouvre les paramètres de l’extension.
+2. Colle ta clé API Gemini, puis saisis le modèle à utiliser. Le modèle par défaut est `gemini-3.5-flash-lite`.
+3. Clique sur **Tester la connexion**.
+4. Clique sur **Enregistrer**.
 
-## 4. Vérifications après installation
+Le nom du modèle doit être un identifiant accepté par l’API et accessible avec ta clé. La clé ne doit jamais être publiée dans le dépôt.
 
-Teste ces cas sans lancer de contenu sensible :
-- ouvrir une vidéo YouTube depuis l'accueil ;
-- ouvrir une URL YouTube directe et un Short ;
-- ouvrir une vidéo dans un nouvel onglet ;
-- tester une vidéo manifestement éducative et une vidéo hors programme ;
-- envoyer une justification recevable puis une justification insuffisante ;
-- vérifier que Netflix et les autres sites non YouTube ne sont pas visés.
+## Tester le fonctionnement
 
-## Dépannage
+- Clique sur une vidéo YouTube censée être hors programme.
+- Essaie une vidéo de maths clairement pédagogique.
+- Vérifie les recommandations, Shorts et liens directs.
+- Ouvre **Justifier l’erreur** et teste une justification recevable puis une justification insuffisante.
+- Vérifie que les sites qui ne sont pas YouTube ne sont pas bloqués.
 
-- **L'extension ne se charge pas :** vérifie que le dossier sélectionné contient directement `manifest.json`.
-- **Gemini ne répond pas :** vérifie la clé API, le modèle configuré et la connexion réseau.
-- **La vidéo reste bloquée après un recours accepté :** recharge l'extension depuis `arc://extensions`, puis reteste ; rapporte le cas avec les erreurs de la console si nécessaire.
-
-
-## Choisir le modèle Gemini
-
-Le modèle par défaut est `gemini-3.5-flash-lite`. Tu peux remplacer cet identifiant dans le champ texte des paramètres. « Gemini 3.5 Flashlight » est reconnu comme alias de `gemini-3.5-flash-lite`.
+Si une vidéo scolaire est encore bloquée, note le titre et le message de Gemini. Une connexion API réussie ne garantit pas que la classification du sujet soit correcte.
