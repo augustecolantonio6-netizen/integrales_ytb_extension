@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Intégrales — YouTube Focus",
-  "version": "1.0.4",
-  "description": "Bloque les vidéos YouTube hors programme et propose une intégrale à la place.",
+  "version": "1.0.5",
+  "description": "Vérifie les vidéos YouTube et bloque celles sans lien avec les matières choisies.",
   "minimum_chrome_version": "116",
   "permissions": [
     "storage",
