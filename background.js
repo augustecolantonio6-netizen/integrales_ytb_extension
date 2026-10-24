@@ -258,20 +258,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         targetTabId = created.id;
       }
 
-      const verificationTitle = sanitizeText(message.title || "", 500);
+      const suppliedTitle = sanitizeText(message.title || "", 500);
       let verification;
       try {
-        verification = await verifyVideoBeforeOpening(video.videoId, verificationTitle);
+        verification = await verifyVideoBeforeOpening(video.videoId, suppliedTitle);
       } catch (error) {
-        console.warn("La vérification préalable n’a pas abouti :", error);
-        verification = {
-          allowed: false,
-          title: verificationTitle,
-          reason: "Vérification indisponible. La vidéo doit être réexaminée."
-        };
+        console.warn("Vérification préalable impossible :", error);
+        verification = { allowed: false, title: suppliedTitle, reason: "Vérification indisponible." };
       }
 
-      const finalTitle = sanitizeText(verification?.title || verificationTitle, 500);
+      const finalTitle = sanitizeText(verification?.title || suppliedTitle, 500);
       if (verification?.allowed === true) {
         const tokenKey = ALLOW_PREFIX + targetTabId + ":" + video.videoId;
         await chrome.storage.session.set({
@@ -684,6 +680,61 @@ async function verifyVideoBeforeOpening(videoId, suppliedTitle) {
     : first;
 
   return { ...final, title };
+}
+
+async function verifyVideoBeforeOpening(videoId, suppliedTitle) {
+  const settings = await getGeminiSettings();
+  let title = sanitizeText(suppliedTitle, 500);
+  if (!settings.apiKey) {
+    return {
+      allowed: false,
+      title,
+      subject: "Aucune",
+      reason: "Clé Gemini manquante. Configure-la dans les paramètres."
+    };
+  }
+
+  let basic = { title: "", description: "", transcript: "", channel: "" };
+  try { basic = await fetchVideoDetails(videoId, { extended: false }); } catch {}
+  if (basic.title) title = basic.title;
+  if (!title) title = "Titre de vidéo indisponible";
+
+  const firstContext = {
+    description: "",
+    transcript: "",
+    channel: sanitizeText(basic.channel, 200)
+  };
+  const first = await classifyVideo({
+    apiKey: settings.apiKey,
+    model: settings.model,
+    title,
+    videoId,
+    context: firstContext
+  });
+  if (first.allowed === true && first.needsMoreContext !== true) {
+    return { ...first, title };
+  }
+
+  // Do not block on a title-only negative: inspect description/transcript and retry.
+  let extended = { ...basic, description: "", transcript: "" };
+  try { extended = await fetchVideoDetails(videoId, { extended: true }); } catch {}
+  if (extended.title) title = extended.title;
+  const extraContext = {
+    description: sanitizeText(extended.description, 5000),
+    transcript: sanitizeText(extended.transcript, MAX_TRANSCRIPT_CHARS),
+    channel: sanitizeText(extended.channel || basic.channel, 200)
+  };
+  const hasExtraEvidence = Boolean(extraContext.description || extraContext.transcript);
+  const finalResult = hasExtraEvidence
+    ? await classifyVideo({
+        apiKey: settings.apiKey,
+        model: settings.model,
+        title,
+        videoId,
+        context: extraContext
+      })
+    : first;
+  return { ...finalResult, title };
 }
 
 const CHAT_SCHEMA = {
