@@ -1,0 +1,88 @@
+name: Publish browsable extension source
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "releases/Integrales_YouTube_Focus_v1.0.3.zip"
+      - ".github/workflows/publish-extension-source.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  unpack-source:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Extract and validate source files
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          import shutil
+
+          archive = Path("releases/Integrales_YouTube_Focus_v1.0.3.zip")
+          if not archive.is_file():
+              raise SystemExit(f"Archive not found: {archive}")
+
+          staging = Path(".source-staging")
+          if staging.exists():
+              shutil.rmtree(staging)
+
+          with ZipFile(archive) as zf:
+              bad = zf.testzip()
+              if bad:
+                  raise SystemExit(f"ZIP integrity check failed: {bad}")
+              names = zf.namelist()
+              if not any(n.endswith("/manifest.json") for n in names):
+                  raise SystemExit("manifest.json was not found in the archive")
+              zf.extractall(staging)
+
+          roots = [p for p in staging.iterdir() if p.is_dir()]
+          if len(roots) != 1 or not (roots[0] / "manifest.json").is_file():
+              raise SystemExit("Unexpected archive layout; expected one root folder with manifest.json")
+
+          source = roots[0]
+          target = Path("extension")
+          if target.exists():
+              shutil.rmtree(target)
+          target.mkdir()
+
+          for item in source.iterdir():
+              if item.name in {"README.md", "_preview.html"}:
+                  continue
+              dest = target / item.name
+              if item.is_dir():
+                  shutil.copytree(item, dest)
+              else:
+                  shutil.copy2(item, dest)
+
+          exercises = list((target / "assets" / "exercises").glob("*.png"))
+          solutions = list((target / "assets" / "solutions").glob("*.png"))
+          if len(exercises) != 100 or len(solutions) != 100:
+              raise SystemExit(f"Expected 100 exercise and 100 solution images; got {len(exercises)} and {len(solutions)}")
+
+          if not (target / "manifest.json").is_file():
+              raise SystemExit("Source extraction failed: extension/manifest.json is missing")
+
+          shutil.rmtree(staging)
+          print(f"Validated source: {len(exercises)} exercises, {len(solutions)} solutions")
+          PY
+
+      - name: Commit extracted source
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add extension
+          if git diff --cached --quiet; then
+            echo "No source changes to publish."
+            exit 0
+          fi
+          git commit -m "Publish browsable extension source"
+          git push
