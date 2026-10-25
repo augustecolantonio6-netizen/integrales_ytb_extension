@@ -27,7 +27,7 @@ Si Arc indique que le manifeste est introuvable, tu as probablement sélectionn�
 3. Clique sur **Tester la connexion**.
 4. Clique sur **Enregistrer**.
 
-Le nom du modèle doit être un identifiant accepté par l’API et accessible avec ta clé. La clé ne doit jamais être publiée dans le dépôt.
+Le nom du modèle doit être un identifiant accepté par l’API et accessible avec ta clé. La version 1.0.11 corrige l’incohérence entre l’acceptation de Gemini et le contrôle du nom de matière, et ajoute une navigation de secours si la redirection ne démarre pas. La clé ne doit jamais être publiée dans le dépôt.
 
 ## Tester le fonctionnement
 
@@ -38,4 +38,4 @@ Le nom du modèle doit être un identifiant accepté par l’API et accessible a
 - Sur la page d’intégrales, utilise **Trouver une autre intégrale**, puis le bouton Retour : les changements d’exercice ne doivent pas créer d’entrées d’historique supplémentaires.
 - Vérifie que les sites qui ne sont pas YouTube ne sont pas bloqués.
 
-Si l’écran de vérification ne se ferme pas, le navigateur a dû rencontrer une erreur de navigation ou de service worker : note le message affiché, puis recharge la page. Si une vidéo scolaire est encore bloquée, note le titre et le message de Gemini. Une connexion API réussie ne garantit pas que la classification du sujet soit correcte.
+Si l’écran de vérification ne se ferme pas, le navigateur a dû rencontrer une erreur de navigation ou de service worker : note le message affiché, puis recharge la page. Si la page indique que la justification a été acceptée mais ne quitte toujours pas la page d’intégrales, lis le message d’erreur affiché : la version actuelle doit désormais signaler l’échec de navigation et tenter un second chemin. Si une vidéo scolaire est encore bloquée, note le titre et le message de Gemini. Une connexion API réussie ne garantit pas que la classification du sujet soit correcte.
