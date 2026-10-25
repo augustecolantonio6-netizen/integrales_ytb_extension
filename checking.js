@@ -41,6 +41,27 @@
     } catch { return null; }
   }
 
+  function replaceWithFallback(targetUrl, fallbackMessage) {
+    return new Promise((resolve) => {
+      let pageLeaving = false;
+      window.addEventListener("pagehide", () => {
+        pageLeaving = true;
+        resolve(true);
+      }, { once: true });
+      location.replace(targetUrl);
+      setTimeout(async () => {
+        if (pageLeaving || location.pathname !== "/checking.html") return;
+        const fallback = await sendRuntime(fallbackMessage);
+        if (fallback?.ok) {
+          resolve(true);
+        } else {
+          setStatus(fallback?.error || "La navigation n’a pas abouti. Recharge YouTube et réessaie.");
+          resolve(false);
+        }
+      }, 900);
+    });
+  }
+
   async function init() {
     const ready = await sendRuntime({ type: "CHECKING_PAGE_READY" });
     if (!ready?.ok) {
@@ -60,7 +81,7 @@
         return;
       }
       setStatus("Sujet autorisé. Ouverture de la vidéo…", true);
-      location.replace(target.href);
+      await replaceWithFallback(target.href, { type: "NAVIGATE_APPROVED_VIDEO" });
       return;
     }
     const blockedUrl = validatedBlockedUrl(result.blockedUrl);
@@ -69,7 +90,7 @@
       return;
     }
     setStatus("Aucun lien suffisant avec les matières autorisées. Ouverture de la page d’intégrales…", true);
-    location.replace(blockedUrl.href);
+    await replaceWithFallback(blockedUrl.href, { type: "NAVIGATE_BLOCKED_GATE" });
   }
 
   void init().catch((error) => setStatus(error?.message || "Une erreur a empêché la vérification."));

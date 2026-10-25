@@ -662,6 +662,29 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === "NAVIGATE_BLOCKED_GATE") {
+    void (async () => {
+      if (!isCheckingPageSender(sender)) return sendResponse({ ok: false, error: "Navigation vers le blocage refusée." });
+      const tabId = sender.tab?.id;
+      const gate = Number.isInteger(tabId) ? await getGateContext(tabId) : null;
+      if (!gate || gate.prechecked !== true) {
+        return sendResponse({ ok: false, error: "Aucune décision de blocage n’est associée à cet onglet." });
+      }
+      const currentTab = await chrome.tabs.get(tabId).catch(() => null);
+      try {
+        const current = new URL(currentTab?.url || "about:blank");
+        const blocked = new URL(chrome.runtime.getURL(GATE_PATH));
+        if (current.origin === blocked.origin && current.pathname === blocked.pathname) {
+          return sendResponse({ ok: true, navigated: true, alreadyThere: true });
+        }
+      } catch {}
+      const blockedUrl = makeGateUrl({ exercise: gate.exercise });
+      await chrome.tabs.update(tabId, { url: blockedUrl });
+      sendResponse({ ok: true, navigated: true, targetUrl: blockedUrl });
+    })().catch((error) => sendResponse({ ok: false, error: error.message || "Impossible d’ouvrir la page d’intégrales." }));
+    return true;
+  }
+
   if (message.type === "OPEN_OPTIONS") {
     void chrome.runtime.openOptionsPage().then(() => sendResponse({ ok: true })).catch((error) => sendResponse({ ok: false, error: error.message }));
     return true;
