@@ -268,6 +268,7 @@ async function handleVideoNavigation(details) {
     // window; leaving YouTube removes the rule, not the token immediately.
     try {
       await enableAllowedMediaRule(details.tabId);
+      await chrome.storage.session.remove(gateContextKey(details.tabId)).catch(() => {});
       return;
     } catch (error) {
       console.warn("Could not restore the approved video's media rule:", error);
@@ -434,7 +435,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const title = sanitizeText(verdict?.title || gate.title, 500);
       if (verdict?.allowed === true) {
         const targetUrl = await prepareApprovedVideo(tabId, gate.targetUrl, gate.videoId, "pre-navigation-classification");
-        await chrome.storage.session.remove(gateContextKey(tabId)).catch(() => {});
         sendResponse({ ok: true, allowed: true, targetUrl, subject: verdict.subject || "" });
         return;
       }
@@ -624,6 +624,41 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const approvedUrl = await prepareApprovedVideo(tabId, gate.targetUrl, gate.videoId, grant.source || "appeal");
       sendResponse({ ok: true, targetUrl: approvedUrl });
     })().catch((error) => sendResponse({ ok: false, error: error.message || "Impossible d'ouvrir la vidéo. Elle reste bloquée." }));
+    return true;
+  }
+
+  if (message.type === "NAVIGATE_APPROVED_VIDEO") {
+    void (async () => {
+      if (!isGatePageSender(sender) && !isCheckingPageSender(sender)) {
+        return sendResponse({ ok: false, error: "Navigation de secours refusée : page non autorisée." });
+      }
+      const tabId = sender.tab?.id;
+      if (!Number.isInteger(tabId) || tabId < 0) return sendResponse({ ok: false, error: "Onglet introuvable." });
+
+      const currentTab = await chrome.tabs.get(tabId).catch(() => null);
+      const currentVideo = parseVideoUrl(currentTab?.url || "");
+      if (currentVideo) {
+        const currentTokenKey = `${ALLOW_PREFIX}${tabId}:${currentVideo.videoId}`;
+        const currentStore = await chrome.storage.session.get(currentTokenKey).catch(() => ({}));
+        if (currentStore[currentTokenKey]?.expiresAt > Date.now()) {
+          return sendResponse({ ok: true, navigated: true, targetUrl: currentVideo.url, alreadyThere: true });
+        }
+      }
+
+      const gate = await getGateContext(tabId);
+      if (!gate) return sendResponse({ ok: false, error: "Contexte de vidéo absent pour la navigation de secours." });
+      const target = parseVideoUrl(gate.targetUrl);
+      if (!target || target.videoId !== gate.videoId) return sendResponse({ ok: false, error: "L’URL de la vidéo n’est pas valide." });
+
+      const tokenKey = `${ALLOW_PREFIX}${tabId}:${target.videoId}`;
+      const stored = await chrome.storage.session.get(tokenKey).catch(() => ({}));
+      if (!stored[tokenKey] || stored[tokenKey].expiresAt <= Date.now()) {
+        return sendResponse({ ok: false, error: "Aucune autorisation valide ne permet cette navigation." });
+      }
+      await enableAllowedMediaRule(tabId);
+      await chrome.tabs.update(tabId, { url: target.url });
+      sendResponse({ ok: true, navigated: true, targetUrl: target.url, fallback: true });
+    })().catch((error) => sendResponse({ ok: false, error: error.message || "La navigation de secours a échoué." }));
     return true;
   }
 
