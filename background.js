@@ -177,6 +177,7 @@ async function routeTabToCheck(tabId, targetUrl, title = "", exercise = null) {
       await chrome.tabs.update(tabId, { url: chrome.runtime.getURL(CHECK_PATH) });
     } catch (error) {
       console.warn("Could not redirect YouTube video to the verification page:", error);
+      throw error;
     }
   })();
 
@@ -230,13 +231,21 @@ async function prepareApprovedVideo(tabId, rawUrl, expectedVideoId, source) {
   }
   // Keep the approval for the browser session so Back/Forward does not send an
   // already approved YouTube video back through the exercise gate.
+  const tokenKey = `${ALLOW_PREFIX}${tabId}:${video.videoId}`;
   await chrome.storage.session.set({
-    [`${ALLOW_PREFIX}${tabId}:${video.videoId}`]: {
+    [tokenKey]: {
       expiresAt: Date.now() + ALLOW_TTL_MS,
       source: source || "classification"
     }
   });
-  await enableAllowedMediaRule(tabId);
+  try {
+    await enableAllowedMediaRule(tabId);
+  } catch (error) {
+    // Never leave a valid approval token behind if the media exception failed.
+    await chrome.storage.session.remove(tokenKey).catch(() => {});
+    await removeAllowedMediaRule(tabId).catch(() => {});
+    throw error;
+  }
   return video.url;
 }
 
@@ -280,10 +289,16 @@ async function handleVideoNavigation(details) {
 }
 
 chrome.webNavigation.onBeforeNavigate.addListener((details) => {
-  void handleVideoNavigation(details);
+  void handleVideoNavigation(details).catch((error) => {
+    console.warn("Navigation guard failed:", error);
+  });
 });
 chrome.webNavigation.onHistoryStateUpdated.addListener((details) => {
-  if (details.frameId === 0) void handleVideoNavigation(details);
+  if (details.frameId === 0) {
+    void handleVideoNavigation(details).catch((error) => {
+      console.warn("YouTube route guard failed:", error);
+    });
+  }
 });
 chrome.tabs.onRemoved.addListener((tabId) => {
   void removeAllowedMediaRule(tabId);
@@ -442,7 +457,35 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         reason,
         blockedUrl: makeGateUrl({ exercise: gate.exercise })
       });
-    })().catch((error) => sendResponse({ ok: false, error: error.message || "Vérification impossible." }));
+    })().catch(async (error) => {
+      console.error("Pending video verification failed:", error);
+      const tabId = sender.tab?.id;
+      const gate = isCheckingPageSender(sender) && Number.isInteger(tabId)
+        ? await getGateContext(tabId).catch(() => null)
+        : null;
+      if (gate) {
+        const reason = `Vérification impossible : ${humanizeApiError(error)}`;
+        await chrome.storage.session.set({
+          [gateContextKey(tabId)]: {
+            videoId: gate.videoId,
+            targetUrl: gate.targetUrl,
+            title: gate.title,
+            exercise: gate.exercise,
+            prechecked: true,
+            initialDecision: reason,
+            createdAt: Date.now()
+          }
+        }).catch(() => {});
+        sendResponse({
+          ok: true,
+          allowed: false,
+          reason,
+          blockedUrl: makeGateUrl({ exercise: gate.exercise })
+        });
+        return;
+      }
+      sendResponse({ ok: false, error: error.message || "Vérification impossible." });
+    });
     return true;
   }
 

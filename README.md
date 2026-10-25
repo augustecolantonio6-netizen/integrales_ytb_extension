@@ -1,6 +1,6 @@
 # Intégrales YouTube Focus
 
-Extension Chromium pour Arc sous Windows qui vérifie les vidéos YouTube avant de décider si elles sont liées aux matières autorisées ; une intégrale apparaît seulement pour les vidéos considérées hors sujet après vérification. La version courante est **1.0.9**.
+Extension Chromium pour Arc sous Windows qui vérifie les vidéos YouTube avant de décider si elles sont liées aux matières autorisées ; une intégrale apparaît seulement pour les vidéos considérées hors sujet après vérification. La version courante est **1.0.10**.
 
 ## Télécharger et installer — une seule méthode
 

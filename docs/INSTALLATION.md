@@ -38,4 +38,4 @@ Le nom du modèle doit être un identifiant accepté par l’API et accessible a
 - Sur la page d’intégrales, utilise **Trouver une autre intégrale**, puis le bouton Retour : les changements d’exercice ne doivent pas créer d’entrées d’historique supplémentaires.
 - Vérifie que les sites qui ne sont pas YouTube ne sont pas bloqués.
 
-Si une vidéo scolaire est encore bloquée, note le titre et le message de Gemini. Une connexion API réussie ne garantit pas que la classification du sujet soit correcte.
+Si l’écran de vérification ne se ferme pas, le navigateur a dû rencontrer une erreur de navigation ou de service worker : note le message affiché, puis recharge la page. Si une vidéo scolaire est encore bloquée, note le titre et le message de Gemini. Une connexion API réussie ne garantit pas que la classification du sujet soit correcte.

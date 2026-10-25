@@ -74,7 +74,7 @@
       // itself navigates to the video or the integral gate after classification.
       if (error || response?.ok === false) {
         console.error("Impossible de lancer la vérification.", error || response?.error || "");
-        if (!wantsNewTab) removeCover();
+        if (!wantsNewTab) ensureCover("La vérification n’a pas pu démarrer. Recharge YouTube et réessaie.");
       }
     });
   }
