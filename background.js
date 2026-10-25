@@ -13,10 +13,12 @@ const SUBJECTS = [
 
 const DEFAULT_MODEL = "gemini-3.5-flash-lite";
 const GATE_PATH = "blocked.html";
+const CHECK_PATH = "checking.html";
 const ALLOW_PREFIX = "allow_once:";
 const MAX_TRANSCRIPT_CHARS = 8000;
 const ALLOW_TTL_MS = 12 * 60 * 60 * 1000;
 const allowedRuleUpdates = new Map();
+const checkRouting = new Map();
 const MODEL_ALIASES = new Map([
   ["gemini 3.5 flashlight", "gemini-3.5-flash-lite"],
   ["gemini 3.5 flash lite", "gemini-3.5-flash-lite"],
@@ -109,6 +111,15 @@ function isGatePageSender(sender) {
   } catch { return false; }
 }
 
+function isCheckingPageSender(sender) {
+  if (!Number.isInteger(sender?.tab?.id) || sender.tab.id < 0 || !sender.url) return false;
+  try {
+    const expected = new URL(chrome.runtime.getURL(CHECK_PATH));
+    const actual = new URL(sender.url);
+    return actual.origin === expected.origin && actual.pathname === expected.pathname;
+  } catch { return false; }
+}
+
 async function getGateContext(tabId) {
   if (!Number.isInteger(tabId) || tabId < 0) return null;
   const key = gateContextKey(tabId);
@@ -121,41 +132,59 @@ async function getGateContext(tabId) {
     videoId: video.videoId,
     targetUrl: video.url,
     title: String(context.title || "").slice(0, 500),
-    exercise: Number.isInteger(context.exercise) ? context.exercise : randomExercise()
+    exercise: Number.isInteger(context.exercise) ? context.exercise : randomExercise(),
+    prechecked: context.prechecked === true,
+    initialDecision: String(context.initialDecision || "").slice(0, 1000)
   };
 }
 
-async function routeTabToGate(tabId, targetUrl, title = "", exercise = null) {
+async function routeTabToCheck(tabId, targetUrl, title = "", exercise = null) {
   const video = parseVideoUrl(targetUrl);
-  if (!video) return;
-  try {
-    const recentKey = `gate_recent:${tabId}:${video.videoId}`;
-    const recent = await chrome.storage.session.get(recentKey).catch(() => ({}));
-    if (recent[recentKey]?.expiresAt > Date.now()) {
-      try {
-        const currentTab = await chrome.tabs.get(tabId);
-        const expected = new URL(chrome.runtime.getURL(GATE_PATH));
-        const current = new URL(currentTab?.url || "about:blank");
-        if (current.origin === expected.origin && current.pathname === expected.pathname) return;
-      } catch { /* if the tab cannot be inspected, retry the fail-closed redirect */ }
-    }
-    await chrome.storage.session.set({ [recentKey]: { expiresAt: Date.now() + 1800 } }).catch(() => {});
-    // Revoke any previously granted media exception before routing to an exercise.
-    await removeAllowedMediaRule(tabId);
-    const chosenExercise = exercise || randomExercise();
-    await chrome.storage.session.set({
-      [gateContextKey(tabId)]: {
-        videoId: video.videoId,
-        targetUrl: video.url,
-        title: String(title || "").slice(0, 500),
-        exercise: chosenExercise,
-        createdAt: Date.now()
+  if (!video || !Number.isInteger(tabId) || tabId < 0) return;
+  const routeKey = `${tabId}:${video.videoId}`;
+  const pending = checkRouting.get(routeKey);
+  if (pending) return pending;
+
+  const operation = (async () => {
+    try {
+      const recentKey = `gate_recent:${tabId}:${video.videoId}`;
+      const recent = await chrome.storage.session.get(recentKey).catch(() => ({}));
+      if (recent[recentKey]?.expiresAt > Date.now()) {
+        try {
+          const currentTab = await chrome.tabs.get(tabId);
+          const checkUrl = new URL(chrome.runtime.getURL(CHECK_PATH));
+          const gateUrl = new URL(chrome.runtime.getURL(GATE_PATH));
+          const current = new URL(currentTab?.url || "about:blank");
+          if (current.origin === checkUrl.origin &&
+              (current.pathname === checkUrl.pathname || current.pathname === gateUrl.pathname)) return;
+        } catch { /* best effort; continue with routing */ }
       }
-    });
-    const gateUrl = makeGateUrl({ exercise: chosenExercise });
-    await chrome.tabs.update(tabId, { url: gateUrl });
-  } catch (error) {
-    console.warn("Could not redirect YouTube video to the exercise page:", error);
+
+      await chrome.storage.session.set({ [recentKey]: { expiresAt: Date.now() + 2500 } }).catch(() => {});
+      await removeAllowedMediaRule(tabId);
+      const chosenExercise = Number.isInteger(exercise) ? exercise : randomExercise();
+      await chrome.storage.session.set({
+        [gateContextKey(tabId)]: {
+          videoId: video.videoId,
+          targetUrl: video.url,
+          title: String(title || "").slice(0, 500),
+          exercise: chosenExercise,
+          prechecked: false,
+          initialDecision: "",
+          createdAt: Date.now()
+        }
+      });
+      await chrome.tabs.update(tabId, { url: chrome.runtime.getURL(CHECK_PATH) });
+    } catch (error) {
+      console.warn("Could not redirect YouTube video to the verification page:", error);
+    }
+  })();
+
+  checkRouting.set(routeKey, operation);
+  try {
+    await operation;
+  } finally {
+    if (checkRouting.get(routeKey) === operation) checkRouting.delete(routeKey);
   }
 }
 
@@ -247,7 +276,7 @@ async function handleVideoNavigation(details) {
     title = pending[pendingKey].title || "";
     await chrome.storage.session.remove(pendingKey).catch(() => {});
   }
-  await routeTabToGate(details.tabId, video.url, title);
+  await routeTabToCheck(details.tabId, video.url, title);
 }
 
 chrome.webNavigation.onBeforeNavigate.addListener((details) => {
@@ -290,42 +319,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
         targetTabId = created.id;
       }
-
-      const suppliedTitle = sanitizeText(message.title || "", 500);
-      let verification;
-      try {
-        verification = await verifyVideoBeforeOpening(video.videoId, suppliedTitle);
-      } catch (error) {
-        console.warn("Vérification préalable impossible :", error);
-        verification = { allowed: false, title: suppliedTitle, reason: "Vérification indisponible." };
-      }
-
-      const finalTitle = sanitizeText(verification?.title || suppliedTitle, 500);
-      if (verification?.allowed === true) {
-        const approvedUrl = await prepareApprovedVideo(
-          targetTabId, video.url, video.videoId, "pre-navigation-classification"
-        );
-        // The existing YouTube page must perform same-tab navigation only
-        // after it receives this response. Navigating this tab here can destroy
-        // the sender page before it handles the approval callback.
-        if (message.newTab) {
-          await chrome.tabs.update(targetTabId, { url: approvedUrl });
-        }
-        sendResponse({
-          ok: true,
-          allowed: true,
-          subject: verification.subject || "",
-          url: approvedUrl,
-          navigateInNewTab: Boolean(message.newTab)
-        });
-        return;
-      }
-
-      await routeTabToGate(targetTabId, video.url, finalTitle);
-      sendResponse({ ok: true, allowed: false, reason: verification?.reason || "" });
+      await routeTabToCheck(targetTabId, video.url, sanitizeText(message.title || "", 500));
+      sendResponse({ ok: true, checking: true });
     })().catch((error) => {
       console.error(error);
-      sendResponse({ ok: false, error: "Impossible de vérifier ou d’ouvrir cette vidéo." });
+      sendResponse({ ok: false, error: "Impossible de lancer la vérification de cette vidéo." });
     });
     return true;
   }
@@ -385,6 +383,66 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
       sendResponse({ ok: Boolean(context) });
     })().catch(() => sendResponse({ ok: false }));
+    return true;
+  }
+
+  if (message.type === "CHECKING_PAGE_READY") {
+    void (async () => {
+      if (!isCheckingPageSender(sender)) return sendResponse({ ok: false });
+      const context = await getGateContext(sender.tab.id);
+      sendResponse({ ok: Boolean(context) });
+    })().catch(() => sendResponse({ ok: false }));
+    return true;
+  }
+
+  if (message.type === "VERIFY_PENDING_VIDEO") {
+    void (async () => {
+      if (!isCheckingPageSender(sender)) {
+        return sendResponse({ ok: false, error: "Vérification refusée : page non autorisée." });
+      }
+      const tabId = sender.tab.id;
+      const gate = await getGateContext(tabId);
+      if (!gate) return sendResponse({ ok: false, error: "Aucune vidéo à vérifier n’est associée à cet onglet." });
+
+      let verdict;
+      try {
+        verdict = await verifyVideoBeforeOpening(gate.videoId, gate.title);
+      } catch (error) {
+        verdict = {
+          allowed: false,
+          title: gate.title,
+          subject: "Aucune",
+          reason: `Vérification impossible : ${humanizeApiError(error)}`
+        };
+      }
+
+      const title = sanitizeText(verdict?.title || gate.title, 500);
+      if (verdict?.allowed === true) {
+        const targetUrl = await prepareApprovedVideo(tabId, gate.targetUrl, gate.videoId, "pre-navigation-classification");
+        await chrome.storage.session.remove(gateContextKey(tabId)).catch(() => {});
+        sendResponse({ ok: true, allowed: true, targetUrl, subject: verdict.subject || "" });
+        return;
+      }
+
+      const reason = sanitizeText(verdict?.reason || "Le lien avec une matière autorisée n’a pas été confirmé.", 1000);
+      await chrome.storage.session.set({
+        [gateContextKey(tabId)]: {
+          videoId: gate.videoId,
+          targetUrl: gate.targetUrl,
+          title,
+          exercise: gate.exercise,
+          prechecked: true,
+          initialDecision: reason,
+          createdAt: Date.now()
+        }
+      });
+      sendResponse({
+        ok: true,
+        allowed: false,
+        reason,
+        blockedUrl: makeGateUrl({ exercise: gate.exercise })
+      });
+    })().catch((error) => sendResponse({ ok: false, error: error.message || "Vérification impossible." }));
     return true;
   }
 

@@ -1,6 +1,6 @@
 # Intégrales YouTube Focus
 
-Extension Chromium pour Arc sous Windows qui vérifie les vidéos YouTube avant de décider si elles sont liées aux matières autorisées ; une intégrale apparaît seulement pour les vidéos considérées hors sujet après vérification. La version courante est **1.0.8**.
+Extension Chromium pour Arc sous Windows qui vérifie les vidéos YouTube avant de décider si elles sont liées aux matières autorisées ; une intégrale apparaît seulement pour les vidéos considérées hors sujet après vérification. La version courante est **1.0.9**.
 
 ## Télécharger et installer — une seule méthode
 
@@ -26,7 +26,7 @@ La clé API est conservée dans le stockage local de l’extension ; ne la publi
 - Matières autorisées : mathématiques, maths expertes, physique, enseignement scientifique, littérature anglaise, espagnol, philosophie, géographie, histoire et enseignement moral et civique.
 - Vérification Gemini avant l’ouverture : une vidéo pertinente s’ouvre directement ; si le titre ne suffit pas, la description et la transcription sont examinées avant blocage.
 - Après une validation, la page d’intégrales est remplacée dans l’historique par la vidéo ; le bouton Retour ne devrait donc pas revenir à cette intégrale.
-- Après une approbation automatique, la page YouTube qui a intercepté le clic reçoit l’URL autorisée et navigue elle-même vers la vidéo, au lieu de dépendre d’une navigation déclenchée depuis le service d’arrière-plan.
+- Le clic ouvre une page de vérification légère, sans intégrale : elle se remplace par la vidéo si Gemini l’approuve, ou par la page d’intégrales si Gemini la refuse. Cela évite de dépendre du callback du clic YouTube initial.
 - Les vidéos déjà approuvées restent autorisées dans l’onglet pendant la session, pour éviter de rebloquer la vidéo précédente lors d’un retour arrière.
 - Le contenu n’a pas besoin d’être strictement au programme : approfondissements, niveau supérieur et culture générale liés à une matière sont autorisés.
 - Le filtrage vise les pages YouTube elles-mêmes, pas les vidéos YouTube intégrées dans des pages d’autres sites.
@@ -37,7 +37,7 @@ La clé API est conservée dans le stockage local de l’extension ; ne la publi
 
 ## Structure
 
-Les fichiers de l’extension sont tous à la racine, notamment `manifest.json`, `background.js`, `content.js`, `blocked.html`, `settings.html`, `popup.html`, `styles.css`, `rules.json`, `icons/` et les dossiers des énoncés, solutions et rendus.
+Les fichiers de l’extension sont tous à la racine, notamment `manifest.json`, `background.js`, `content.js`, `checking.html`, `checking.js`, `blocked.html`, `settings.html`, `popup.html`, `styles.css`, `rules.json`, `icons/` et les dossiers des énoncés, solutions et rendus.
 
 Le guide complémentaire est dans [docs/INSTALLATION.md](docs/INSTALLATION.md).
 

@@ -373,6 +373,13 @@
 
     videoTitleEl.textContent = videoTitle || "Récupération du titre de la vidéo…";
     await sendRuntime({ type: "GATE_PAGE_READY" });
+    if (gate.context.prechecked === true) {
+      initialDecision = String(gate.context.initialDecision || "Aucun lien avec une matière autorisée n’a été confirmé.");
+      revealBlockedInterface();
+      setStatus("Vidéo bloquée — le sujet semble hors des matières autorisées.", "error");
+      showNotice(initialDecision, "info");
+      return;
+    }
     await classify();
   }
 
