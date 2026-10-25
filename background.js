@@ -771,7 +771,7 @@ function isAllowedSubject(value) {
 function inferAllowedSubject(value) {
   const text = normalizeSubject(value);
   const checks = [
-    ["Mathématiques", /\b(math|maths|mathematics|mathematical|calculus|algebra|geometry|trigonometry|derivative|integral|equation|theorem|proof|probability|statistics|linear algebra|number theory|matrix|matrices|fonction|derivee|integrale|algebre|geometrie|theoreme|probabilite|statistique|arithmetique|nombres complexes)\b/],
+    ["Mathématiques", /\b(math|maths|mathematics|mathematical|calculus|algebra|geometry|trigonometry|derivative\w*|integral\w*|equation\w*|theorem\w*|proof\w*|probabilit\w*|statistic\w*|linear algebra|number theory|matrix|matrices|fonction\w*|derive\w*|algebre|geometrie|theoreme\w*|arithmetique|nombres complexes)\b/],
     ["Physique", /\b(physics|physique|mechanics|mecanique|quantum|quantique|relativity|relativite|electromagnetism|electricity|magnetism|thermodynamics|optics|optique|newtonian|astrophysics)\b/],
     ["Histoire", /\b(history|histoire|historical|historique|roman empire|empire romain|world war|wwii|ww2|french revolution|revolution francaise|guerre mondiale|middle ages|moyen age|medieval|dynasty|dynastie|civilization|civilisation|century|siecle|napoleon)\b/],
     ["Géographie", /\b(geography|geographie|geographic|cartography|cartographie|tectonic plates|plate tectonics|urban geography|physical geography)\b/],
