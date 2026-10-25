@@ -70,7 +70,31 @@
       newTab: wantsNewTab
     }, (response) => {
       const error = chrome.runtime.lastError;
-      if (!wantsNewTab && (error || response?.ok === false)) removeCover();
+      if (wantsNewTab) return;
+
+      if (!error && response?.ok === true && response?.allowed === true) {
+        const approved = getVideoInfo(response.url || "");
+        if (!approved || approved.id !== video.id) {
+          console.error("L’URL approuvée ne correspond pas à la vidéo cliquée.");
+          removeCover();
+          return;
+        }
+
+        // Use a real top-level navigation from the live YouTube page.
+        // replace() prevents a duplicate history entry when YouTube is already
+        // on this video (for example, when the guard catches a direct URL).
+        if (getVideoInfo(location.href)?.id === approved.id && VIDEO_PATH.test(location.pathname)) {
+          window.location.replace(approved.url);
+        } else {
+          window.location.assign(approved.url);
+        }
+        return;
+      }
+
+      if (error || response?.ok === false) {
+        console.error("La vérification de la vidéo n’a pas abouti.", error || response?.error || "");
+        removeCover();
+      }
     });
   }
 

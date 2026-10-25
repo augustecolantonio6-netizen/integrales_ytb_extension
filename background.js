@@ -305,8 +305,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const approvedUrl = await prepareApprovedVideo(
           targetTabId, video.url, video.videoId, "pre-navigation-classification"
         );
-        await chrome.tabs.update(targetTabId, { url: approvedUrl });
-        sendResponse({ ok: true, allowed: true, subject: verification.subject || "", url: approvedUrl });
+        // The existing YouTube page must perform same-tab navigation only
+        // after it receives this response. Navigating this tab here can destroy
+        // the sender page before it handles the approval callback.
+        if (message.newTab) {
+          await chrome.tabs.update(targetTabId, { url: approvedUrl });
+        }
+        sendResponse({
+          ok: true,
+          allowed: true,
+          subject: verification.subject || "",
+          url: approvedUrl,
+          navigateInNewTab: Boolean(message.newTab)
+        });
         return;
       }
 
