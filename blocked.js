@@ -122,37 +122,60 @@
   }
 
   async function attemptUnlock() {
-    if (unlockStarted) return;
+    if (unlockStarted) return false;
     unlockStarted = true;
-    setStatus("Justification acceptée — ouverture de la vidéo…", "success");
-    showNotice("Le lien pédagogique a été confirmé. Tu es redirigé vers cette vidéo.", "success");
+    setStatus("Autorisation reçue — ouverture de la vidéo…", "loading");
+    showNotice("La justification a été validée. Ouverture de la vidéo en cours.", "info");
     const response = await sendRuntime({ type: "UNLOCK_VIDEO" });
     if (!response?.ok) {
       unlockStarted = false;
       revealBlockedInterface();
       setStatus("Autorisation incomplète — la vidéo reste bloquée.", "error");
       showNotice(response?.error || "Impossible d’ouvrir la vidéo. Elle reste bloquée.");
-      return;
+      return false;
     }
 
-    // Replacing the gate page (rather than asking tabs.update to navigate)
-    // removes the exercise page from the Back history after an approval.
     const approvedUrl = String(response.targetUrl || targetUrl);
     try {
       const parsed = new URL(approvedUrl);
       if (parsed.hostname !== "www.youtube.com" || parsed.pathname !== "/watch" || parsed.searchParams.get("v") !== videoId) {
         throw new Error("L’URL approuvée ne correspond pas à la vidéo.");
       }
-      location.replace(parsed.href);
+
+      const navigated = await new Promise((resolve) => {
+        let settled = false;
+        const settle = (value) => {
+          if (settled) return;
+          settled = true;
+          resolve(value);
+        };
+        window.addEventListener("pagehide", () => settle(true), { once: true });
+        location.replace(parsed.href);
+        setTimeout(async () => {
+          if (settled || location.pathname !== "/blocked.html") return;
+          const fallback = await sendRuntime({ type: "NAVIGATE_APPROVED_VIDEO" });
+          if (fallback?.ok) {
+            settle(true);
+          } else {
+            unlockStarted = false;
+            revealBlockedInterface();
+            setStatus("La navigation vers YouTube a échoué.", "error");
+            showNotice(fallback?.error || "Gemini a validé la justification, mais le navigateur n’a pas quitté la page d’intégrales.");
+            settle(false);
+          }
+        }, 900);
+      });
+      return navigated;
     } catch (error) {
       unlockStarted = false;
       revealBlockedInterface();
       setStatus("Navigation impossible — la vidéo reste bloquée.", "error");
       showNotice(error?.message || "Impossible d’ouvrir l’URL vidéo approuvée.");
+      return false;
     }
   }
 
-  async function classify() {
+async function classify() {
     if (classificationBusy) return;
     classificationBusy = true;
     setStatus("Vérification du sujet avec Gemini…", "loading");
@@ -283,9 +306,12 @@
     appendChatMessage("user", message);
     appendChatMessage("assistant", reply);
     if (response?.accepted === true) {
-      const success = "Justification acceptée. Ouverture de la vidéo…";
-      appendChatMessage("system", success);
-      await attemptUnlock();
+      const navigated = await attemptUnlock();
+      if (navigated) {
+        appendChatMessage("system", "Justification validée. La navigation vers la vidéo a été lancée.");
+      } else {
+        appendChatMessage("system", "Gemini a accepté la justification, mais la navigation n’a pas abouti. Consulte le message d’erreur affiché.");
+      }
       return;
     }
     if (response?.error) showNotice(response.error);
