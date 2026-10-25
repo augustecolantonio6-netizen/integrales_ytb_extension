@@ -914,12 +914,13 @@ Règles :
   contents.push({ role: "user", parts: [{ text: userMessage }] });
   const result = await callGemini({ apiKey, model, systemInstruction, contents, schema: CHAT_SCHEMA, maxOutputTokens: 500 });
   const accepted = result.accepted === true && result.needsMoreContext !== true;
-  return {
-    reply: sanitizeText(result.reply, 1200) || "Je n'ai pas assez d'éléments pour valider cette justification.",
-    accepted,
-    needsMoreContext: result.needsMoreContext === true,
-    subject: sanitizeText(result.subject, 100)
-  };
+  const inferredSubject = inferAllowedSubject([title, context.description, context.transcript, userMessage].filter(Boolean).join(" "));
+  const subject = isAllowedSubject(result.subject) ? sanitizeText(result.subject, 100) : inferredSubject || "Aucune";
+  let reply = sanitizeText(result.reply, 1200) || "Je n'ai pas assez d'éléments pour valider cette justification.";
+  if (!accepted && /justification acceptée|recours accepté|tu peux regarder|vidéo autorisée|déblocage validé|je t'autorise/i.test(reply)) {
+    reply = "Je n’ai pas encore validé le déblocage : les éléments ne concordent pas assez. La vidéo reste bloquée pour le moment.";
+  }
+  return { reply, accepted, needsMoreContext: result.needsMoreContext === true, subject };
 }
 
 async function fetchVideoDetails(videoId, { extended = false } = {}) {
