@@ -710,6 +710,25 @@ function isAllowedSubject(value) {
   return aliases.has(candidate);
 }
 
+function inferAllowedSubject(value) {
+  const text = normalizeSubject(value);
+  const checks = [
+    ["Mathématiques", /\b(math|maths|mathematics|mathematical|calculus|algebra|geometry|trigonometry|derivative|integral|equation|theorem|proof|probability|statistics|linear algebra|number theory|matrix|matrices|fonction|derivee|integrale|algebre|geometrie|theoreme|probabilite|statistique|arithmetique|nombres complexes)\b/],
+    ["Physique", /\b(physics|physique|mechanics|mecanique|quantum|quantique|relativity|relativite|electromagnetism|electricity|magnetism|thermodynamics|optics|optique|newtonian|astrophysics)\b/],
+    ["Histoire", /\b(history|histoire|historical|historique|roman empire|empire romain|world war|wwii|ww2|french revolution|revolution francaise|guerre mondiale|middle ages|moyen age|medieval|dynasty|dynastie|civilization|civilisation|century|siecle|napoleon)\b/],
+    ["Géographie", /\b(geography|geographie|geographic|cartography|cartographie|tectonic plates|plate tectonics|urban geography|physical geography)\b/],
+    ["Philosophie", /\b(philosophy|philosophie|philosopher|ethics|ethique|epistemology|metaphysics|existentialism|moral philosophy|stoicism)\b/],
+    ["Littérature anglaise", /\b(english literature|literature analysis|literary analysis|literature|literary|shakespeare|poetry analysis|poem analysis|novel analysis|english poetry)\b/],
+    ["Espagnol", /\b(spanish|espanol|castellano|learn spanish|spanish language|spanish grammar|spanish conjugation|gramatica espanola)\b/],
+    ["Enseignement moral et civique (EMC)", /\b(civics|civic education|citizenship|human rights|democracy|constitution|laicite|citoyennete|droits humains|democratie|emc)\b/],
+    ["Enseignement scientifique", /\b(science|sciences|scientific|scientifique|biology|biologie|chemistry|chimie|astronomy|astronomie|climate science|enseignement scientifique)\b/]
+  ];
+  for (const [subject, pattern] of checks) {
+    if (pattern.test(text)) return subject;
+  }
+  return "";
+}
+
 const CLASSIFICATION_SCHEMA = {
   type: "OBJECT",
   properties: {
