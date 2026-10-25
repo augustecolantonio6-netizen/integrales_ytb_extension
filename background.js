@@ -757,7 +757,7 @@ Règles :
     maxOutputTokens: 320
   });
   return {
-    allowed: result.allowed === true && !result.needsMoreContext && isAllowedSubject(result.subject),
+    allowed: result.allowed === true && !result.needsMoreContext,
     subject: sanitizeText(result.subject, 100),
     reason: sanitizeText(result.reason, 800) || "Le sujet n'a pas pu être confirmé.",
     needsMoreContext: result.needsMoreContext === true
@@ -863,7 +863,7 @@ Règles :
   const contents = [{ role: "user", parts: [{ text: contextText }] }, ...history];
   contents.push({ role: "user", parts: [{ text: userMessage }] });
   const result = await callGemini({ apiKey, model, systemInstruction, contents, schema: CHAT_SCHEMA, maxOutputTokens: 500 });
-  const accepted = result.accepted === true && result.needsMoreContext !== true && isAllowedSubject(result.subject);
+  const accepted = result.accepted === true && result.needsMoreContext !== true;
   return {
     reply: sanitizeText(result.reply, 1200) || "Je n'ai pas assez d'éléments pour valider cette justification.",
     accepted,
