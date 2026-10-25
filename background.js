@@ -811,12 +811,17 @@ async function verifyVideoBeforeOpening(videoId, suppliedTitle) {
     title,
     videoId,
     context: firstContext
-  });
+  }).catch((error) => ({
+    allowed: false,
+    subject: "Aucune",
+    reason: "Gemini indisponible : " + humanizeApiError(error),
+    needsMoreContext: true
+  }));
   if (first.allowed === true && first.needsMoreContext !== true) {
     return { ...first, title };
   }
 
-  // Do not block on a title-only negative: inspect description/transcript and retry.
+  // A title-only negative isn't final: inspect description/transcript too.
   let extended = { ...basic, description: "", transcript: "" };
   try { extended = await fetchVideoDetails(videoId, { extended: true }); } catch {}
   if (extended.title) title = extended.title;
@@ -826,15 +831,41 @@ async function verifyVideoBeforeOpening(videoId, suppliedTitle) {
     channel: sanitizeText(extended.channel || basic.channel, 200)
   };
   const hasExtraEvidence = Boolean(extraContext.description || extraContext.transcript);
-  const finalResult = hasExtraEvidence
-    ? await classifyVideo({
-        apiKey: settings.apiKey,
-        model: settings.model,
-        title,
-        videoId,
-        context: extraContext
-      })
-    : first;
+  let finalResult = first;
+  if (hasExtraEvidence) {
+    finalResult = await classifyVideo({
+      apiKey: settings.apiKey,
+      model: settings.model,
+      title,
+      videoId,
+      context: extraContext
+    }).catch((error) => ({
+      allowed: false,
+      subject: "Aucune",
+      reason: "Gemini n’a pas pu terminer l’analyse : " + humanizeApiError(error),
+      needsMoreContext: false
+    }));
+  }
+  if (finalResult.allowed === true && finalResult.needsMoreContext !== true) {
+    return { ...finalResult, title };
+  }
+
+  // If Gemini rejects a clearly named subject or the API fails, allow an
+  // explicit subject match in the title/description/transcript as a fallback.
+  const inferredSubject = inferAllowedSubject(
+    [title, extraContext.description, extraContext.transcript].filter(Boolean).join(" ")
+  );
+  if (inferredSubject) {
+    return {
+      allowed: true,
+      subject: inferredSubject,
+      reason: "Le titre ou les informations identifient clairement un sujet de " +
+        inferredSubject + ". Il n’a pas besoin d’être strictement au programme.",
+      needsMoreContext: false,
+      title,
+      fallback: true
+    };
+  }
   return { ...finalResult, title };
 }
 
