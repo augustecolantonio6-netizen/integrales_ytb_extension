@@ -193,7 +193,8 @@ function mediaRuleId(tabId) { return 1000000 + tabId; }
 
 async function removeAllowedMediaRule(tabId) {
   if (!Number.isInteger(tabId) || tabId < 0) return;
-  await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: [mediaRuleId(tabId)] }).catch(() => {});
+  // Per-tab rules must be session-scoped: Chromium only supports tabIds on session rules.
+  await chrome.declarativeNetRequest.updateSessionRules({ removeRuleIds: [mediaRuleId(tabId)] }).catch(() => {});
 }
 
 function enableAllowedMediaRule(tabId) {
@@ -204,7 +205,8 @@ function enableAllowedMediaRule(tabId) {
   if (existing) return existing;
 
   const id = mediaRuleId(tabId);
-  const operation = chrome.declarativeNetRequest.updateDynamicRules({
+  // Dynamic rules cannot use tabIds. Use a session rule so the exception applies only to this tab.
+  const operation = chrome.declarativeNetRequest.updateSessionRules({
     removeRuleIds: [id],
     addRules: [{
       id,
