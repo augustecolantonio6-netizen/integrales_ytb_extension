@@ -1,6 +1,6 @@
 # Intégrales YouTube Focus
 
-Extension Chromium pour Arc sous Windows qui vérifie les vidéos YouTube avant de décider si elles sont liées aux matières autorisées ; une intégrale apparaît seulement pour les vidéos considérées hors sujet après vérification. La version courante est **1.0.10**.
+Extension Chromium pour Arc sous Windows qui vérifie les vidéos YouTube avant de décider si elles sont liées aux matières autorisées ; une intégrale apparaît seulement pour les vidéos considérées hors sujet après vérification. La version courante est **1.0.11**.
 
 ## Télécharger et installer — une seule méthode
 
@@ -32,7 +32,7 @@ La clé API est conservée dans le stockage local de l’extension ; ne la publi
 - Le filtrage vise les pages YouTube elles-mêmes, pas les vidéos YouTube intégrées dans des pages d’autres sites.
 - 100 énoncés et 100 solutions intégrés.
 - Boutons **Solution** et **Trouver une autre intégrale**.
-- Recours conversationnel via Gemini ; une validation ne doit autoriser que la vidéo contestée.
+- Recours conversationnel via Gemini ; une validation ne doit autoriser que la vidéo contestée. Le succès n’est affiché qu’après vérification du déblocage, avec navigation de secours si nécessaire.
 - En cas d’erreur API ou si aucun lien avec une matière ne peut être établi après vérification, l’accès reste bloqué et le recours reste disponible.
 
 ## Structure
