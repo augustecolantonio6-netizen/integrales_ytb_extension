@@ -134,9 +134,22 @@
       showNotice(response?.error || "Impossible d’ouvrir la vidéo. Elle reste bloquée.");
       return;
     }
-    setTimeout(() => {
-      // The service worker navigates this tab. If it fails, the user remains on the exercise page.
-    }, 200);
+
+    // Replacing the gate page (rather than asking tabs.update to navigate)
+    // removes the exercise page from the Back history after an approval.
+    const approvedUrl = String(response.targetUrl || targetUrl);
+    try {
+      const parsed = new URL(approvedUrl);
+      if (parsed.hostname !== "www.youtube.com" || parsed.pathname !== "/watch" || parsed.searchParams.get("v") !== videoId) {
+        throw new Error("L’URL approuvée ne correspond pas à la vidéo.");
+      }
+      location.replace(parsed.href);
+    } catch (error) {
+      unlockStarted = false;
+      revealBlockedInterface();
+      setStatus("Navigation impossible — la vidéo reste bloquée.", "error");
+      showNotice(error?.message || "Impossible d’ouvrir l’URL vidéo approuvée.");
+    }
   }
 
   async function classify() {

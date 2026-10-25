@@ -15,6 +15,8 @@ const DEFAULT_MODEL = "gemini-3.5-flash-lite";
 const GATE_PATH = "blocked.html";
 const ALLOW_PREFIX = "allow_once:";
 const MAX_TRANSCRIPT_CHARS = 8000;
+const ALLOW_TTL_MS = 12 * 60 * 60 * 1000;
+const allowedRuleUpdates = new Map();
 const MODEL_ALIASES = new Map([
   ["gemini 3.5 flashlight", "gemini-3.5-flash-lite"],
   ["gemini 3.5 flash lite", "gemini-3.5-flash-lite"],
@@ -164,10 +166,15 @@ async function removeAllowedMediaRule(tabId) {
   await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: [mediaRuleId(tabId)] }).catch(() => {});
 }
 
-async function enableAllowedMediaRule(tabId) {
-  if (!Number.isInteger(tabId) || tabId < 0) throw new Error("Onglet invalide pour le déblocage média.");
+function enableAllowedMediaRule(tabId) {
+  if (!Number.isInteger(tabId) || tabId < 0) {
+    return Promise.reject(new Error("Onglet invalide pour le déblocage média."));
+  }
+  const existing = allowedRuleUpdates.get(tabId);
+  if (existing) return existing;
+
   const id = mediaRuleId(tabId);
-  await chrome.declarativeNetRequest.updateDynamicRules({
+  const operation = chrome.declarativeNetRequest.updateDynamicRules({
     removeRuleIds: [id],
     addRules: [{
       id,
@@ -181,6 +188,27 @@ async function enableAllowedMediaRule(tabId) {
       }
     }]
   });
+  allowedRuleUpdates.set(tabId, operation);
+  return operation.finally(() => {
+    if (allowedRuleUpdates.get(tabId) === operation) allowedRuleUpdates.delete(tabId);
+  });
+}
+
+async function prepareApprovedVideo(tabId, rawUrl, expectedVideoId, source) {
+  const video = parseVideoUrl(rawUrl);
+  if (!video || video.videoId !== expectedVideoId) {
+    throw new Error("L’URL de la vidéo approuvée ne correspond pas à la vidéo vérifiée.");
+  }
+  // Keep the approval for the browser session so Back/Forward does not send an
+  // already approved YouTube video back through the exercise gate.
+  await chrome.storage.session.set({
+    [`${ALLOW_PREFIX}${tabId}:${video.videoId}`]: {
+      expiresAt: Date.now() + ALLOW_TTL_MS,
+      source: source || "classification"
+    }
+  });
+  await enableAllowedMediaRule(tabId);
+  return video.url;
 }
 
 async function handleVideoNavigation(details) {
@@ -192,7 +220,7 @@ async function handleVideoNavigation(details) {
     return;
   }
 
-  // A one-use, tab-specific token is created only after Gemini grants access.
+  // A tab/video access token is created only after Gemini grants access.
   const tokenKey = `${ALLOW_PREFIX}${details.tabId}:${video.videoId}`;
   const stored = await chrome.storage.session.get(tokenKey).catch(() => ({}));
   const token = stored[tokenKey];
@@ -230,7 +258,12 @@ chrome.webNavigation.onHistoryStateUpdated.addListener((details) => {
 });
 chrome.tabs.onRemoved.addListener((tabId) => {
   void removeAllowedMediaRule(tabId);
-  void chrome.storage.session.remove([gateContextKey(tabId)]).catch(() => {});
+  allowedRuleUpdates.delete(tabId);
+  void (async () => {
+    const values = await chrome.storage.session.get(null).catch(() => ({}));
+    const keys = Object.keys(values).filter((key) => key.startsWith(`${ALLOW_PREFIX}${tabId}:`) || key === gateContextKey(tabId) || key.startsWith(`unlock_grant:${tabId}:`));
+    if (keys.length) await chrome.storage.session.remove(keys).catch(() => {});
+  })();
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -269,13 +302,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
       const finalTitle = sanitizeText(verification?.title || suppliedTitle, 500);
       if (verification?.allowed === true) {
-        const tokenKey = ALLOW_PREFIX + targetTabId + ":" + video.videoId;
-        await chrome.storage.session.set({
-          [tokenKey]: { expiresAt: Date.now() + 30000, source: "pre-navigation-classification" }
-        });
-        await enableAllowedMediaRule(targetTabId);
-        await chrome.tabs.update(targetTabId, { url: video.url });
-        sendResponse({ ok: true, allowed: true, subject: verification.subject || "" });
+        const approvedUrl = await prepareApprovedVideo(
+          targetTabId, video.url, video.videoId, "pre-navigation-classification"
+        );
+        await chrome.tabs.update(targetTabId, { url: approvedUrl });
+        sendResponse({ ok: true, allowed: true, subject: verification.subject || "", url: approvedUrl });
         return;
       }
 
@@ -409,7 +440,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         context
       });
       if (result.allowed === true && result.needsMoreContext !== true) {
-        await chrome.storage.session.set({ [unlockGrantKey(sender.tab.id, gate.videoId)]: { expiresAt: Date.now() + 30000, source: "classification" } });
+        await chrome.storage.session.set({ [unlockGrantKey(sender.tab.id, gate.videoId)]: { expiresAt: Date.now() + 2 * 60 * 1000, source: "classification" } });
       }
       sendResponse({ configured: true, ...result });
     })().catch((error) => sendResponse({ configured: true, allowed: false, needsMoreContext: false, reason: `Analyse indisponible : ${humanizeApiError(error)}` }));
@@ -439,7 +470,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         userMessage: sanitizeText(message.userMessage || "", 2000)
       });
       if (result.accepted === true) {
-        await chrome.storage.session.set({ [unlockGrantKey(sender.tab.id, gate.videoId)]: { expiresAt: Date.now() + 30000, source: "justification" } });
+        await chrome.storage.session.set({ [unlockGrantKey(sender.tab.id, gate.videoId)]: { expiresAt: Date.now() + 2 * 60 * 1000, source: "justification" } });
       }
       sendResponse({ configured: true, ...result });
     })().catch((error) => sendResponse({ configured: true, accepted: false, reply: `Je n'ai pas pu vérifier la justification : ${humanizeApiError(error)}. La vidéo reste bloquée.` }));
@@ -474,12 +505,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (grant) await chrome.storage.session.remove(grantKey).catch(() => {});
         return sendResponse({ ok: false, error: "Aucune validation Gemini valide pour cette vidéo. Elle reste bloquée." });
       }
-      // Consume the one-use grant before initiating the navigation.
+      // Consume the short-lived classification/appeal grant before preparing the
+      // longer-lived tab/video authorization. The gate page performs location.replace
+      // only after receiving this validated target URL.
       await chrome.storage.session.remove(grantKey);
-      await enableAllowedMediaRule(tabId);
-      await chrome.storage.session.set({ [`${ALLOW_PREFIX}${tabId}:${gate.videoId}`]: { expiresAt: Date.now() + 30000 } });
-      await chrome.tabs.update(tabId, { url: gate.targetUrl });
-      sendResponse({ ok: true });
+      const approvedUrl = await prepareApprovedVideo(tabId, gate.targetUrl, gate.videoId, grant.source || "appeal");
+      sendResponse({ ok: true, targetUrl: approvedUrl });
     })().catch((error) => sendResponse({ ok: false, error: error.message || "Impossible d'ouvrir la vidéo. Elle reste bloquée." }));
     return true;
   }
