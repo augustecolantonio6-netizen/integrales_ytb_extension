@@ -27,7 +27,7 @@ Si Arc indique que le manifeste est introuvable, tu as probablement sélectionn�
 3. Clique sur **Tester la connexion**.
 4. Clique sur **Enregistrer**.
 
-Le nom du modèle doit être un identifiant accepté par l’API et accessible avec ta clé. La version 1.0.12 corrige le déblocage des vidéos : les règles réseau limitées à un onglet utilisent désormais l’API de règles de session Chromium, car les règles dynamiques ne prennent pas en charge `tabIds`. La version précédente gardait donc la vidéo bloquée même lorsque Gemini l’acceptait. La clé ne doit jamais être publiée dans le dépôt.
+Le nom du modèle doit être un identifiant accepté par l’API et accessible avec ta clé. La version 1.0.12 corrige le déblocage des vidéos : les règles réseau limitées à un onglet utilisent désormais l’API de règles de session Chromium, car les règles dynamiques ne prennent pas en charge `tabIds`. La version précédente gardait donc la vidéo bloquée même lorsque Gemini l’acceptait. La version 1.0.13 normalise aussi les accents et reconnaît plus de termes mathématiques français dans le filtre de secours. La clé ne doit jamais être publiée dans le dépôt.
 
 ## Tester le fonctionnement
 
