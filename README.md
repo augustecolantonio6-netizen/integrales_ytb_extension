@@ -1,6 +1,6 @@
 # Intégrales YouTube Focus
 
-Extension Chromium pour Arc sous Windows qui vérifie les vidéos YouTube avant de décider si elles sont liées aux matières autorisées ; une intégrale apparaît seulement pour les vidéos considérées hors sujet après vérification. La version courante est **1.0.14**.
+Extension Chromium pour Arc sous Windows qui vérifie les vidéos YouTube avant de décider si elles sont liées aux matières autorisées ; une intégrale apparaît seulement pour les vidéos considérées hors sujet après vérification. La version courante est **1.0.15**.
 
 ## Télécharger et installer — une seule méthode
 
@@ -27,12 +27,13 @@ La clé API est conservée dans le stockage local de l’extension ; ne la publi
 - Vérification Gemini avant l’ouverture : une vidéo pertinente s’ouvre directement ; si le titre ne suffit pas, la description et la transcription sont examinées avant blocage.
 - Après une validation, la page d’intégrales est remplacée dans l’historique par la vidéo ; le bouton Retour ne devrait donc pas revenir à cette intégrale.
 - Les exceptions réseau des vidéos approuvées sont des règles de session ciblées par onglet, conformément à l’API Chromium.
-- Le filtre de secours reconnaît les accents et le vocabulaire mathématique courant en français (mathématiques, intégrales, primitives, dérivées, limites, fonctions, etc.).
+- Le filtre exige un objectif principalement pédagogique : le simple lien avec le lycée ou une notion scolaire ne suffit pas.
+- Le filtre de secours exige un indice pédagogique explicite et écarte les titres clairement centrés sur le divertissement.
 - Les requêtes réseau ont un vrai délai maximal qui couvre aussi la lecture du corps de réponse ; une vérification ne doit plus rester en attente indéfiniment.
 - La page de vérification limite aussi l’attente des messages du service worker et tente une récupération rapide à partir du titre si le contrôle principal ne répond pas.
 - Le clic ouvre une page de vérification légère, sans intégrale : elle se remplace par la vidéo si Gemini l’approuve, ou par la page d’intégrales si Gemini la refuse.
 - Les vidéos déjà approuvées restent autorisées dans l’onglet pendant la session, pour éviter de rebloquer la vidéo précédente lors d’un retour arrière.
-- Le contenu n’a pas besoin d’être strictement au programme : approfondissements, niveau supérieur et culture générale liés à une matière sont autorisés.
+- Le contenu n’a pas besoin d’être strictement au programme : cours universitaires, approfondissements et vulgarisation pédagogique sont autorisés. Les vidéos dont le but premier est le divertissement sont refusées même si elles évoquent une matière.
 - Le filtrage vise les pages YouTube elles-mêmes, pas les vidéos YouTube intégrées dans des pages d’autres sites.
 - 100 énoncés et 100 solutions intégrés.
 - Boutons **Solution** et **Trouver une autre intégrale**.
