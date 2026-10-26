@@ -752,7 +752,12 @@ function allowedSubjectsPrompt() {
 }
 
 function normalizeSubject(value) {
-  return String(value || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function isAllowedSubject(value) {
@@ -773,12 +778,12 @@ function isAllowedSubject(value) {
 function inferAllowedSubject(value) {
   const text = normalizeSubject(value);
   const checks = [
-    ["Mathématiques", /\b(math|maths|mathematics|mathematical|calculus|algebra|geometry|trigonometry|derivative\w*|integral\w*|equation\w*|theorem\w*|proof\w*|probabilit\w*|statistic\w*|linear algebra|number theory|matrix|matrices|fonction\w*|derive\w*|algebre|geometrie|theoreme\w*|arithmetique|nombres complexes)\b/],
-    ["Physique", /\b(physics|physique|mechanics|mecanique|quantum|quantique|relativity|relativite|electromagnetism|electricity|magnetism|thermodynamics|optics|optique|newtonian|astrophysics)\b/],
+    ["Mathématiques", /\b(math|maths|mathematiqu\w*|mathematics|mathematical|calculus|calcul integr\w*|algebra|algebre|geometry|geometr\w*|trigonometry|trigonometri\w*|derivative\w*|derive\w*|integral\w*|primitive\w*|limit\w*|limite\w*|equation\w*|theorem\w*|theoreme\w*|proof\w*|demonstration\w*|probabilit\w*|probability|statistic\w*|linear algebra|number theory|matrix|matrices|fonction\w*|arithmetiqu\w*|nombres complexes|complex numbers|logarithm\w*|logarithme\w*|exponentielle\w*|exponential\w*|suite\w*|sequence\w*|vector\w*|vecteur\w*|polynome\w*|polynomial\w*|fractale\w*|fractal\w*)\b/],
+    ["Physique", /\b(physics|physique|mechanics|mecanique|quantum|quantique|relativity|relativite|electromagnetism|electricity|electricite|magnetism|magnetisme|thermodynamics|thermodynamique|optics|optique|newtonian|astrophysics|astrophysique)\b/],
     ["Histoire", /\b(history|histoire|historical|historique|roman empire|empire romain|world war|wwii|ww2|french revolution|revolution francaise|guerre mondiale|middle ages|moyen age|medieval|dynasty|dynastie|civilization|civilisation|century|siecle|napoleon)\b/],
     ["Géographie", /\b(geography|geographie|geographic|cartography|cartographie|tectonic plates|plate tectonics|urban geography|physical geography)\b/],
     ["Philosophie", /\b(philosophy|philosophie|philosopher|ethics|ethique|epistemology|metaphysics|existentialism|moral philosophy|stoicism)\b/],
-    ["Littérature anglaise", /\b(english literature|literature analysis|literary analysis|literature|literary|shakespeare|poetry analysis|poem analysis|novel analysis|english poetry)\b/],
+    ["Littérature anglaise", /\b(english literature|litterature anglaise|literature analysis|literary analysis|literature|literary|shakespeare|poetry analysis|poem analysis|novel analysis|english poetry)\b/],
     ["Espagnol", /\b(spanish|espanol|castellano|learn spanish|spanish language|spanish grammar|spanish conjugation|gramatica espanola)\b/],
     ["Enseignement moral et civique (EMC)", /\b(civics|civic education|citizenship|human rights|democracy|constitution|laicite|citoyennete|droits humains|democratie|emc)\b/],
     ["Enseignement scientifique", /\b(science|sciences|scientific|scientifique|biology|biologie|chemistry|chimie|astronomy|astronomie|climate science|enseignement scientifique)\b/]
