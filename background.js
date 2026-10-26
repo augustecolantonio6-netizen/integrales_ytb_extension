@@ -1056,8 +1056,8 @@ Règles :
 - Refuse les contenus principalement divertissants (gameplay, réaction, humour, memes, défis ludiques, vlog, prank, compilation ou sketch) même s’ils évoquent une matière.
 - Accepte les cours, exercices corrigés, démonstrations, analyses et vulgarisations dont la finalité pédagogique est claire, même hors programme ou de niveau supérieur.
 - Une relation avec une matière est nécessaire mais pas suffisante : la finalité pédagogique doit être claire.
-- Consulte le titre, la description et la transcription lorsqu’ils existent. Si ces éléments montrent déjà clairement la matière, accepte sans demander à l’élève de répéter ou de démontrer l’évidence.
-- Ne refuse pas une justification simplement parce qu’elle est courte : si les informations de la vidéo confirment ce que l’élève dit, accepted=true.
+- Consulte le titre, la description et la transcription lorsqu’ils existent. Si ces éléments montrent que le but central est d’enseigner ou d’expliquer la matière, accepte sans demander à l’élève de répéter ou de démontrer l’évidence. Le simple thème scolaire ne suffit pas.
+- Ne refuse pas une justification simplement parce qu’elle est courte si les métadonnées confirment déjà que l’apprentissage est le but central. La confirmation d’un thème pertinent ne suffit pas.
 - Demande une précision seulement si le lien réel avec une matière ne peut pas être déterminé à partir des informations disponibles.
 - N’accepte pas une vidéo manifestement sans rapport avec les matières, sur la seule base d’une affirmation sans appui dans les informations disponibles.
 - Si la justification et les métadonnées montrent que l’apprentissage est le but central, réponds accepted=true. Si la vidéo reste surtout divertissante, réponds accepted=false.
