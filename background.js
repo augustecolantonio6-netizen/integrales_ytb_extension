@@ -491,6 +491,43 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === "RECOVER_PENDING_VIDEO") {
+    void (async () => {
+      if (!isCheckingPageSender(sender)) {
+        return sendResponse({ ok: false, error: "Récupération refusée : page non autorisée." });
+      }
+      const tabId = sender.tab.id;
+      const gate = await getGateContext(tabId);
+      if (!gate) return sendResponse({ ok: false, error: "Le contexte de la vidéo a expiré. Reviens sur YouTube et réessaie." });
+
+      // Fast, bounded recovery: if the actual title explicitly names a school
+      // subject, let that video through rather than leaving the checker spinning.
+      const subject = inferAllowedSubject(gate.title);
+      if (subject) {
+        const targetUrl = await prepareApprovedVideo(tabId, gate.targetUrl, gate.videoId, "timeout-title-fallback");
+        sendResponse({ ok: true, allowed: true, targetUrl, subject, fallback: true });
+        return;
+      }
+
+      const reason = "La vérification Gemini a échoué ou expiré. La vidéo reste bloquée ; tu peux justifier son lien avec une matière.";
+      await chrome.storage.session.set({
+        [gateContextKey(tabId)]: {
+          videoId: gate.videoId,
+          targetUrl: gate.targetUrl,
+          title: gate.title,
+          exercise: gate.exercise,
+          prechecked: true,
+          initialDecision: reason,
+          createdAt: Date.now()
+        }
+      });
+      sendResponse({ ok: true, allowed: false, reason, blockedUrl: makeGateUrl({ exercise: gate.exercise }) });
+    })().catch((error) => {
+      sendResponse({ ok: false, error: error.message || "La récupération de la vidéo a échoué." });
+    });
+    return true;
+  }
+
   if (message.type === "GET_SETTINGS_STATUS") {
     void getGeminiSettings().then((settings) => {
       sendResponse({ configured: Boolean(settings.apiKey), model: settings.model });
@@ -709,7 +746,25 @@ async function fetchWithTimeout(resource, options = {}, timeoutMs = 12000) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    return await fetch(resource, { ...options, signal: controller.signal });
+    const response = await fetch(resource, { ...options, signal: controller.signal });
+    // Keep the timeout active while consuming the body too. Timing out only
+    // fetch() headers leaves response.text()/json() able to hang indefinitely.
+    const body = await response.text();
+    return {
+      ok: response.ok,
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+      text: async () => body,
+      json: async () => JSON.parse(body)
+    };
+  } catch (error) {
+    if (controller.signal.aborted) {
+      const timeoutError = new Error(`Request timed out after ${timeoutMs} ms`);
+      timeoutError.name = "AbortError";
+      throw timeoutError;
+    }
+    throw error;
   } finally {
     clearTimeout(timeoutId);
   }
@@ -849,6 +904,35 @@ Règles :
 }
 
 async function verifyVideoBeforeOpening(videoId, suppliedTitle) {
+  let bestTitle = sanitizeText(suppliedTitle, 500);
+  let deadlineTimer;
+  const deadlineFallback = new Promise((resolve) => {
+    deadlineTimer = setTimeout(() => {
+      const subject = inferAllowedSubject(bestTitle);
+      resolve({
+        allowed: Boolean(subject),
+        subject: subject || "Aucune",
+        title: bestTitle,
+        reason: subject
+          ? `Vérification arrivée au délai maximal. Le titre identifie clairement un sujet de ${subject} ; ouverture autorisée.`
+          : "La vérification Gemini a dépassé 30 secondes. La vidéo reste bloquée, mais tu peux utiliser le recours.",
+        needsMoreContext: false,
+        fallback: true,
+        timedOut: true
+      });
+    }, 30000);
+  });
+  const verification = verifyVideoBeforeOpeningCore(videoId, suppliedTitle, (title) => {
+    if (title) bestTitle = sanitizeText(title, 500);
+  });
+  try {
+    return await Promise.race([verification, deadlineFallback]);
+  } finally {
+    clearTimeout(deadlineTimer);
+  }
+}
+
+async function verifyVideoBeforeOpeningCore(videoId, suppliedTitle, onTitle = () => {}) {
   const settings = await getGeminiSettings();
   let title = sanitizeText(suppliedTitle, 500);
   if (!settings.apiKey) {
@@ -862,7 +946,10 @@ async function verifyVideoBeforeOpening(videoId, suppliedTitle) {
 
   let basic = { title: "", description: "", transcript: "", channel: "" };
   try { basic = await fetchVideoDetails(videoId, { extended: false }); } catch {}
-  if (basic.title) title = basic.title;
+  if (basic.title) {
+    title = basic.title;
+    onTitle(title);
+  }
   if (!title) title = "Titre de vidéo indisponible";
 
   const firstContext = {
@@ -889,7 +976,10 @@ async function verifyVideoBeforeOpening(videoId, suppliedTitle) {
   // A title-only negative isn't final: inspect description/transcript too.
   let extended = { ...basic, description: "", transcript: "" };
   try { extended = await fetchVideoDetails(videoId, { extended: true }); } catch {}
-  if (extended.title) title = extended.title;
+  if (extended.title) {
+    title = extended.title;
+    onTitle(title);
+  }
   const extraContext = {
     description: sanitizeText(extended.description, 5000),
     transcript: sanitizeText(extended.transcript, MAX_TRANSCRIPT_CHARS),

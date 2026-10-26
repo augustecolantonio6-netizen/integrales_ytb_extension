@@ -13,11 +13,31 @@
     status.appendChild(document.createTextNode(message));
   }
 
-  function sendRuntime(message) {
-    return chrome.runtime.sendMessage(message).catch((error) => ({
-      ok: false,
-      error: error?.message || "L’extension ne répond pas."
-    }));
+  function sendRuntime(message, timeoutMs = 10000) {
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (value) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(value || { ok: false, error: "L’extension n’a renvoyé aucune réponse." });
+      };
+      const timer = setTimeout(() => finish({
+        ok: false,
+        timeout: true,
+        error: `Le message ${message.type} n’a pas reçu de réponse en ${Math.round(timeoutMs / 1000)} secondes.`
+      }), timeoutMs);
+      try {
+        chrome.runtime.sendMessage(message, (response) => {
+          const lastError = chrome.runtime.lastError;
+          finish(lastError
+            ? { ok: false, error: lastError.message || "L’extension ne répond pas." }
+            : response);
+        });
+      } catch (error) {
+        finish({ ok: false, error: error?.message || "L’extension ne répond pas." });
+      }
+    });
   }
 
   function validatedVideoUrl(value) {
@@ -63,15 +83,19 @@
   }
 
   async function init() {
-    const ready = await sendRuntime({ type: "CHECKING_PAGE_READY" });
+    const ready = await sendRuntime({ type: "CHECKING_PAGE_READY" }, 5000);
     if (!ready?.ok) {
-      setStatus("Le contexte de la vidéo est introuvable. Reviens sur YouTube et réessaie.");
+      setStatus(ready?.error || "Le contexte de la vidéo est introuvable. Reviens sur YouTube et réessaie.");
       return;
     }
     setStatus("Analyse du titre et des informations disponibles…", true);
-    const result = await sendRuntime({ type: "VERIFY_PENDING_VIDEO" });
+    let result = await sendRuntime({ type: "VERIFY_PENDING_VIDEO" }, 32000);
     if (!result?.ok) {
-      setStatus(result?.error || "La vérification a échoué. Reviens sur YouTube et réessaie.");
+      setStatus("La vérification principale a échoué. Tentative de récupération…", true);
+      result = await sendRuntime({ type: "RECOVER_PENDING_VIDEO" }, 5000);
+    }
+    if (!result?.ok) {
+      setStatus(result?.error || "Impossible de terminer la vérification. Recharge l’extension dans arc://extensions, puis réessaie.");
       return;
     }
     if (result.allowed === true) {

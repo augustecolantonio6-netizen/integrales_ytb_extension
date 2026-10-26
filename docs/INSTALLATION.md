@@ -39,3 +39,8 @@ Le nom du modèle doit être un identifiant accepté par l’API et accessible a
 - Vérifie que les sites qui ne sont pas YouTube ne sont pas bloqués.
 
 Si l’écran de vérification ne se ferme pas, le navigateur a dû rencontrer une erreur de navigation ou de service worker : note le message affiché, puis recharge la page. Si la page indique que la justification a été acceptée mais ne quitte toujours pas la page d’intégrales, lis le message d’erreur affiché : la version actuelle doit désormais signaler l’échec de navigation et tenter un second chemin. Si une vidéo scolaire est encore bloquée, note le titre et le message de Gemini. Une connexion API réussie ne garantit pas que la classification du sujet soit correcte.
+
+
+## Correction 1.0.14 — vérification qui reste chargée
+
+La version 1.0.14 maintient le délai maximal actif jusqu’à la fin de lecture de la réponse HTTP, pas seulement jusqu’à la réception des en-têtes. La vérification globale est limitée à 30 secondes ; ensuite un titre qui nomme clairement une matière peut ouvrir la vidéo, et dans le cas contraire la page de blocage reste accessible. La page de vérification dispose également d’un délai d’attente pour les messages et d’un chemin de récupération.
